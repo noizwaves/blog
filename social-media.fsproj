@@ -16,7 +16,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="_posts\hello-world.md" />
+    <PostResources Include="_posts/**" />
   </ItemGroup>
+
+  <Target Name="CopyResources" AfterTargets="Publish">
+    <Copy SourceFiles="@(PostResources)"
+          DestinationFolder="$(PublishDir)/_posts"
+    />
+  </Target>
 
 </Project>
