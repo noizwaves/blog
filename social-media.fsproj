@@ -25,9 +25,15 @@
     <Templates Include="templates/**" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <Publics Include="public/**" />
+  </ItemGroup>
+
   <Target Name="CopyResources" AfterTargets="Publish">
     <Copy SourceFiles="@(PostResources)" DestinationFolder="$(PublishDir)/_posts" />
     <Copy SourceFiles="@(Templates)" DestinationFolder="$(PublishDir)/templates" />
+    <Copy SourceFiles="@(Publics)" DestinationFiles="@(Publics->'$(PublishDir)/public/%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
 
 </Project>

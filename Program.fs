@@ -85,13 +85,15 @@ let main _ =
         |> Choice.fold id (fun _ -> 8080)
     
     let local = Suave.Http.HttpBinding.createSimple HTTP "0.0.0.0" port
-    let config = { defaultConfig with bindings = [ local ] }
+    let config = { defaultConfig with bindings = [ local ]
+                                      homeFolder = Some(Path.GetFullPath "./public") }
     
     setTemplatesDir "./templates"
     setCSharpNamingConvention ()
     
     let app : WebPart =
         choose [ GET >=> pathScan "/posts/%s" handleBlogPost
+                 GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
     startWebServer config app
     0
