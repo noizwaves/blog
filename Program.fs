@@ -1,6 +1,7 @@
 ﻿module Program
 
 open Suave
+open Suave.DotLiquid
 open Suave.Filters
 open Suave.Operators
 open Suave.Successful
@@ -10,7 +11,13 @@ open System
 open System.IO
 open System.Text
 open FSharp.Markdown
-open FSharp.Markdown
+
+        
+type PostHtmlDto = 
+    { title : String
+      createdAt : String
+      editedAt : String
+      bodyHtml : String }
 
 let private handleBlogPost slug =
     request (fun r -> 
@@ -62,11 +69,13 @@ let private handleBlogPost slug =
             | EmbedParagraphs _ -> "EmbedParagraphs"
 
         let body = List.map viewParagraph parsed.Paragraphs |> List.reduce (fun s1 s2 -> s1 + s2)
-        let html =
-            sprintf 
-                "<html><head><title>%s</title></head><body><h1>%s</h1><div>Created at %s</div><div>Edited at %s</div><article class=\"post\">%s</article></body></html>" 
-                title title createdAt editedAt body
-        OK html)
+        
+        let model = { title = title
+                      createdAt = createdAt
+                      editedAt = editedAt
+                      bodyHtml = body }
+        
+        page "post.html.liquid" model)
 
 [<EntryPoint>]
 let main _ =
@@ -77,6 +86,9 @@ let main _ =
     
     let local = Suave.Http.HttpBinding.createSimple HTTP "0.0.0.0" port
     let config = { defaultConfig with bindings = [ local ] }
+    
+    setTemplatesDir "./templates"
+    setCSharpNamingConvention ()
     
     let app : WebPart =
         choose [ GET >=> pathScan "/posts/%s" handleBlogPost
