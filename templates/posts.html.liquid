@@ -1,0 +1,67 @@
+<html>
+<head>
+  <title>{{ model.title }}</title>
+  <link rel="stylesheet" type="text/css" href="/static/app.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrapper">
+    <a class="site-title" href="/">Adam Neumann's blog</a>
+    <nav></nav>
+  </div>
+</header>
+<main class="page-content">
+  <div class="wrapper">
+    <div class="home">
+      <h2 class="post-list-heading">Posts</h2>
+      <ul class="post-list">
+        {% for post in model.posts -%}
+        <li>
+          <span class="post-meta">{{ post.createdAt }}</span>
+          <h3>
+            <a class="post-link" href="{{ post.link }}">
+              {{ post.title }}
+            </a>
+          </h3>
+        </li>
+        {% endfor -%}
+      </ul>
+    </div>
+  </div>
+</main>
+<footer class="site-footer">
+  <div class="wrapper">
+    <h2 class="footer-heading">Adam Neumann's blog</h2>
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Adam Neumann's blog</li>
+          <li><a class="u-email" href="mailto:blog@noizwaves.com">blog@noizwaves.com</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-2">
+        <ul class="social-media-list">
+          <li>
+            <a href="https://github.com/noizwaves">
+              <span class="username">noizwaves</span>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.twitter.com/noizwaves">
+              <span class="username">noizwaves</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-col-3">
+        <p>Technical blog of Adam Neumann. Senior Software Engineer at Pivotal Labs in Boulder, CO.
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
+

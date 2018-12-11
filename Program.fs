@@ -40,61 +40,125 @@ let private parsePostFile (raw : String) =
         (frontmatter, document)
     else (Map.empty, raw)
 
+let private viewSpan (s : MarkdownSpan) =
+    match s with
+    | Literal(text) -> text
+    | InlineCode(code) -> sprintf "<code class=\"highlighter-rouge\">%s</code>" code
+    | Strong _ -> "Strong"
+    | Emphasis _ -> "Emphasis"
+    | AnchorLink _ -> "AnchorLink"
+    | DirectLink _ -> "DirectLink"
+    | IndirectLink _ -> "IndirectLink"
+    | DirectImage(body, (link, _)) -> 
+        let src = link |> String.replace "{{ site.url }}" ""
+        sprintf "<img src=\"%s\" alt=\"%s\" />" src body
+    | IndirectImage _ -> "IndirectImage"
+    | HardLineBreak _ -> "<br>"
+    | LatexInlineMath _ -> "LatexInlineMath"
+    | LatexDisplayMath _ -> "LatexDisplayMath"
+    | EmbedSpans _ -> "EmbedSpans"
+
+let private viewSpans (spans : MarkdownSpans) =
+    spans
+    |> List.map viewSpan
+    |> List.reduce (fun s1 s2 -> s1 + s2)
+
+let private viewParagraph p =
+    match p with
+    | Heading(size, spans) -> sprintf "<h%i>%s</h%i>" size (viewSpans spans) size
+    | Paragraph(spans) -> sprintf "<p>%s</p>" (viewSpans spans)
+    | CodeBlock _ -> "CodeBlock"
+    | InlineBlock _ -> "InlineBlock"
+    | ListBlock _ -> "ListBlock"
+    | QuotedBlock _ -> "QuotedBlock"
+    | Span _ -> "Span"
+    | LatexBlock _ -> "LatexBlock"
+    | HorizontalRule _ -> "HorizontalRule"
+    | TableBlock _ -> "TableBlock"
+    | EmbedParagraphs _ -> "EmbedParagraphs"
+
+let private toHtmlString (document : MarkdownDocument) : String =
+    document.Paragraphs
+    |> List.map viewParagraph
+    |> List.reduce (fun s1 s2 -> s1 + s2)
+
+type CreateDate = CreateDate of System.DateTime
+
+let parseFromLongString (value : String) : CreateDate option =
+    let date = System.DateTime.Parse(value)
+    Some <| CreateDate date
+
+let formatCreateDate (value : CreateDate) : String =
+    match value with
+    | CreateDate date -> date.ToString("MMM d, yyyy")
+
+type BlogPost =
+    { slug : String
+      title : String
+      createdAt : CreateDate
+      body : String }
+
+let private fromRawString (slug : String) (raw : String) : BlogPost =
+    let (frontMatter, body) = parsePostFile raw
+    let title = Map.tryFind "title" frontMatter |> Option.defaultValue (String.replace "-" " " slug)
+    
+    // Replace this with slug derived date as fallback
+    let fileCreatedAt =
+        sprintf "_posts/%s.md" slug
+        |> System.IO.File.GetCreationTime
+        |> CreateDate
+    
+    let createdAt =
+        Map.tryFind "date" frontMatter
+        |> Option.bind parseFromLongString
+        |> Option.defaultValue fileCreatedAt
+    
+    { slug = slug
+      title = title
+      createdAt = createdAt
+      body = body }
+
 let private handleBlogPost slug =
     request (fun r -> 
-        let raw = sprintf "_posts/%s.md" slug |> System.IO.File.ReadAllText
-        let (frontMatter, document) = parsePostFile raw
-        let title = Map.tryFind "title" frontMatter |> Option.defaultValue (String.replace "-" " " slug)
-        
-        let fileCreatedAt =
+        let post =
             sprintf "_posts/%s.md" slug
-            |> System.IO.File.GetCreationTime
-            |> fun d -> d.ToString()
+            |> System.IO.File.ReadAllText
+            |> fromRawString slug
         
-        let createdAt = Map.tryFind "date" frontMatter |> Option.defaultValue fileCreatedAt
-        let parsed = Markdown.Parse(document)
-        
-        let viewSpan s =
-            match s with
-            | Literal(text) -> text
-            | InlineCode(code) -> sprintf "<code class=\"highlighter-rouge\">%s</code>" code
-            | Strong _ -> "Strong"
-            | Emphasis _ -> "Emphasis"
-            | AnchorLink _ -> "AnchorLink"
-            | DirectLink _ -> "DirectLink"
-            | IndirectLink _ -> "IndirectLink"
-            | DirectImage(body, (link, _)) -> 
-                let src = link |> String.replace "{{ site.url }}" ""
-                sprintf "<img src=\"%s\" alt=\"%s\" />" src body
-            | IndirectImage _ -> "IndirectImage"
-            | HardLineBreak _ -> "<br>"
-            | LatexInlineMath _ -> "LatexInlineMath"
-            | LatexDisplayMath _ -> "LatexDisplayMath"
-            | EmbedSpans _ -> "EmbedSpans"
-        
-        let viewSpans spans = List.map viewSpan spans |> List.reduce (fun s1 s2 -> s1 + s2)
-        
-        let viewParagraph p =
-            match p with
-            | Heading(size, spans) -> sprintf "<h%i>%s</h%i>" size (viewSpans spans) size
-            | Paragraph(spans) -> sprintf "<p>%s</p>" (viewSpans spans)
-            | CodeBlock _ -> "CodeBlock"
-            | InlineBlock _ -> "InlineBlock"
-            | ListBlock _ -> "ListBlock"
-            | QuotedBlock _ -> "QuotedBlock"
-            | Span _ -> "Span"
-            | LatexBlock _ -> "LatexBlock"
-            | HorizontalRule _ -> "HorizontalRule"
-            | TableBlock _ -> "TableBlock"
-            | EmbedParagraphs _ -> "EmbedParagraphs"
-        
-        let body = List.map viewParagraph parsed.Paragraphs |> List.reduce (fun s1 s2 -> s1 + s2)
+        let parsed = Markdown.Parse(post.body)
+        let htmlBody = toHtmlString parsed
         
         let model =
-            { title = title
-              createdAt = createdAt
-              bodyHtml = body }
+            { title = post.title
+              createdAt = post.createdAt |> formatCreateDate
+              bodyHtml = htmlBody }
         page "post.html.liquid" model)
+
+type PostItemHtmlDto =
+    { title : String
+      createdAt : String
+      link : String }
+
+type PostsHtmlDto =
+    { posts : PostItemHtmlDto list }
+
+let private handleBlogPosts request =
+    let posts =
+        System.IO.Directory.GetFiles "_posts"
+        |> Array.toList
+        |> List.map (fun path -> 
+               let slug = System.IO.Path.GetFileNameWithoutExtension path
+               path
+               |> System.IO.File.ReadAllText
+               |> fromRawString slug)
+        |> List.sortByDescending (fun p -> p.createdAt)
+        |> List.map (fun post -> 
+               { title = post.title
+                 createdAt = post.createdAt |> formatCreateDate
+                 link = sprintf "/posts/%s" post.slug })
+    
+    let model = { posts = posts }
+    page "posts.html.liquid" model
 
 [<EntryPoint>]
 let main _ =
@@ -112,6 +176,7 @@ let main _ =
     setCSharpNamingConvention()
     let app : WebPart =
         choose [ GET >=> pathScan "/posts/%s" handleBlogPost
+                 GET >=> path "/" >=> request handleBlogPosts
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
     startWebServer config app
