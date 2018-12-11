@@ -88,9 +88,8 @@ let parseFromLongString (value : String) : CreateDate option =
     let date = System.DateTime.Parse(value)
     Some <| CreateDate date
 
-let formatCreateDate (value : CreateDate) : String =
-    match value with
-    | CreateDate date -> date.ToString("MMM d, yyyy")
+let formatCreateDate (CreateDate value) : String =
+    value.ToString("MMM d, yyyy")
 
 type BlogPost =
     { slug : String
