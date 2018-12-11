@@ -5,6 +5,7 @@ open Suave.DotLiquid
 open Suave.Filters
 open Suave.Operators
 open Suave.Successful
+open Suave.RequestErrors
 open Suave.Json
 open Suave.Utils
 open System
@@ -88,8 +89,7 @@ let parseFromLongString (value : String) : CreateDate option =
     let date = System.DateTime.Parse(value)
     Some <| CreateDate date
 
-let formatCreateDate (CreateDate value) : String =
-    value.ToString("MMM d, yyyy")
+let formatCreateDate (CreateDate value) : String = value.ToString("MMM d, yyyy")
 
 type BlogPost =
     { slug : String
@@ -133,6 +133,41 @@ let private handleBlogPost slug =
               bodyHtml = htmlBody }
         page "post.html.liquid" model)
 
+let private handleBlogPostPrecise year month day titleSlug =
+    request (fun r -> 
+        let allPosts =
+            System.IO.Directory.GetFiles "_posts"
+            |> Array.toList
+            |> List.map (fun path -> 
+                   let slug = System.IO.Path.GetFileNameWithoutExtension path
+                   path
+                   |> System.IO.File.ReadAllText
+                   |> fromRawString slug)
+        
+        let slug = sprintf "%04i-%02i-%02i-%s" year month day titleSlug
+        
+        let safeFind predicate list =
+            try 
+                list
+                |> List.find predicate
+                |> Some
+            with :? System.Collections.Generic.KeyNotFoundException -> None
+        
+        let post = allPosts |> safeFind (fun p -> p.slug.Equals(slug))
+        
+        let toDto post : PostHtmlDto =
+            { title = post.title
+              createdAt = post.createdAt |> formatCreateDate
+              bodyHtml =
+                  post.body
+                  |> Markdown.Parse
+                  |> toHtmlString }
+        
+        let dto : PostHtmlDto option = post |> Option.map toDto
+        match dto with
+        | Some dto -> page "post.html.liquid" dto
+        | None -> NOT_FOUND "404")
+
 type PostItemHtmlDto =
     { title : String
       createdAt : String
@@ -175,6 +210,7 @@ let main _ =
     setCSharpNamingConvention()
     let app : WebPart =
         choose [ GET >=> pathScan "/posts/%s" handleBlogPost
+                 GET >=> pathScan "/%i/%i/%i/%s" (fun (y, m, d, t) -> handleBlogPostPrecise y m d t)
                  GET >=> path "/" >=> request handleBlogPosts
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
