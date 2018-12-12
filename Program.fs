@@ -133,7 +133,7 @@ let private handleBlogPost slug =
               bodyHtml = htmlBody }
         page "post.html.liquid" model)
 
-let private handleBlogPostPrecise year month day titleSlug =
+let private handleBlogPostPrecise (year, month, day, titleSlug) =
     request (fun r -> 
         let allPosts =
             System.IO.Directory.GetFiles "_posts"
@@ -176,6 +176,11 @@ type PostItemHtmlDto =
 type PostsHtmlDto =
     { posts : PostItemHtmlDto list }
 
+let private derivePostUrl (post : BlogPost) : String =
+    match String.split '-' post.slug with
+    | (year :: month :: day :: rest) -> sprintf "/%s/%s/%s/%s" year month day (String.concat "-" rest)
+    | _ -> failwith "Invalid filename"
+
 let private handleBlogPosts request =
     let posts =
         System.IO.Directory.GetFiles "_posts"
@@ -189,7 +194,7 @@ let private handleBlogPosts request =
         |> List.map (fun post -> 
                { title = post.title
                  createdAt = post.createdAt |> formatCreateDate
-                 link = sprintf "/posts/%s" post.slug })
+                 link = post |> derivePostUrl })
     
     let model = { posts = posts }
     page "posts.html.liquid" model
@@ -209,9 +214,8 @@ let main _ =
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
     let app : WebPart =
-        choose [ GET >=> pathScan "/posts/%s" handleBlogPost
-                 GET >=> pathScan "/%i/%i/%i/%s" (fun (y, m, d, t) -> handleBlogPostPrecise y m d t)
-                 GET >=> path "/" >=> request handleBlogPosts
+        choose [ GET >=> path "/" >=> request handleBlogPosts
+                 GET >=> pathScan "/%i/%i/%i/%s" handleBlogPostPrecise
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
     startWebServer config app
