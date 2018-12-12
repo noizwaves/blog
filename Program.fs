@@ -27,6 +27,8 @@ type BlogPost =
       createdAt : CreateDate
       body : String }
 
+type FetchPosts = unit -> BlogPost list
+
 // Disk serialisation
 let private shallowYamlDecode (yml : String) : Map<String, String> =
     yml
@@ -69,6 +71,16 @@ let private fromRawString (slug : String) (raw : String) : BlogPost =
       title = title
       createdAt = createdAt
       body = body }
+
+let private fetchPostsFromDirectory (folder : String) : BlogPost list =
+    folder
+    |> System.IO.Directory.GetFiles
+    |> Array.toList
+    |> List.map (fun path -> 
+           let slug = System.IO.Path.GetFileNameWithoutExtension path
+           path
+           |> System.IO.File.ReadAllText
+           |> fromRawString slug)
 
 // HTML, Markdown formatting
 let rec private viewSpan (s : MarkdownSpan) =
@@ -142,17 +154,9 @@ let private safeFind predicate list =
         |> Some
     with :? System.Collections.Generic.KeyNotFoundException -> None
 
-let private handleBlogPostPrecise (year, month, day, titleSlug) =
+let private handleBlogPost (fetch : FetchPosts) (year, month, day, titleSlug) =
     request (fun r -> 
-        let allPosts =
-            System.IO.Directory.GetFiles "_posts"
-            |> Array.toList
-            |> List.map (fun path -> 
-                   let slug = System.IO.Path.GetFileNameWithoutExtension path
-                   path
-                   |> System.IO.File.ReadAllText
-                   |> fromRawString slug)
-        
+        let allPosts = fetch()
         let slug = sprintf "%04i-%02i-%02i-%s" year month day titleSlug
         let post = allPosts |> safeFind (fun p -> p.slug.Equals(slug))
         
@@ -169,15 +173,9 @@ let private handleBlogPostPrecise (year, month, day, titleSlug) =
         | Some dto -> page "post.html.liquid" dto
         | None -> NOT_FOUND "404")
 
-let private handleBlogPosts request =
+let private handleBlogPosts (fetch : FetchPosts) request =
     let posts =
-        System.IO.Directory.GetFiles "_posts"
-        |> Array.toList
-        |> List.map (fun path -> 
-               let slug = System.IO.Path.GetFileNameWithoutExtension path
-               path
-               |> System.IO.File.ReadAllText
-               |> fromRawString slug)
+        fetch()
         |> List.sortByDescending (fun p -> p.createdAt)
         |> List.map (fun post -> 
                { title = post.title
@@ -201,9 +199,13 @@ let main _ =
                              homeFolder = Some(Path.GetFullPath "./public") }
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
+    
+    let posts = fetchPostsFromDirectory "_posts"
+    let fetchPosts = fun () -> posts
+    
     let app : WebPart =
-        choose [ GET >=> path "/" >=> request handleBlogPosts
-                 GET >=> pathScan "/%i/%i/%i/%s" handleBlogPostPrecise
+        choose [ GET >=> path "/" >=> request (handleBlogPosts fetchPosts)
+                 GET >=> pathScan "/%i/%i/%i/%s" (handleBlogPost fetchPosts)
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
     startWebServer config app
