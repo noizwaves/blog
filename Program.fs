@@ -41,25 +41,25 @@ let private parsePostFile (raw : String) =
         (frontmatter, document)
     else (Map.empty, raw)
 
-let private viewSpan (s : MarkdownSpan) =
+let rec private viewSpan (s : MarkdownSpan) =
     match s with
     | Literal(text) -> text
     | InlineCode(code) -> sprintf "<code class=\"highlighter-rouge\">%s</code>" code
-    | Strong _ -> "Strong"
-    | Emphasis _ -> "Emphasis"
-    | AnchorLink _ -> "AnchorLink"
-    | DirectLink _ -> "DirectLink"
-    | IndirectLink _ -> "IndirectLink"
+    | Strong(span) -> sprintf "<strong>%s</strong>" (viewSpans span)
+    | Emphasis _ -> "$$Emphasis"
+    | AnchorLink _ -> "$$AnchorLink"
+    | DirectLink(body, (link, _)) -> sprintf """<a href="%s">%s</a>""" link (viewSpans body)
+    | IndirectLink _ -> "$$IndirectLink"
     | DirectImage(body, (link, _)) -> 
         let src = link |> String.replace "{{ site.url }}" ""
         sprintf "<img src=\"%s\" alt=\"%s\" />" src body
-    | IndirectImage _ -> "IndirectImage"
+    | IndirectImage _ -> "$$IndirectImage"
     | HardLineBreak _ -> "<br>"
-    | LatexInlineMath _ -> "LatexInlineMath"
-    | LatexDisplayMath _ -> "LatexDisplayMath"
-    | EmbedSpans _ -> "EmbedSpans"
+    | LatexInlineMath _ -> "$$LatexInlineMath"
+    | LatexDisplayMath _ -> "$$LatexDisplayMath"
+    | EmbedSpans _ -> "$$EmbedSpans"
 
-let private viewSpans (spans : MarkdownSpans) =
+and private viewSpans (spans : MarkdownSpans) =
     spans
     |> List.map viewSpan
     |> List.reduce (fun s1 s2 -> s1 + s2)
@@ -68,15 +68,15 @@ let private viewParagraph p =
     match p with
     | Heading(size, spans) -> sprintf "<h%i>%s</h%i>" size (viewSpans spans) size
     | Paragraph(spans) -> sprintf "<p>%s</p>" (viewSpans spans)
-    | CodeBlock _ -> "CodeBlock"
-    | InlineBlock _ -> "InlineBlock"
-    | ListBlock _ -> "ListBlock"
-    | QuotedBlock _ -> "QuotedBlock"
-    | Span _ -> "Span"
-    | LatexBlock _ -> "LatexBlock"
-    | HorizontalRule _ -> "HorizontalRule"
-    | TableBlock _ -> "TableBlock"
-    | EmbedParagraphs _ -> "EmbedParagraphs"
+    | CodeBlock _ -> "$$CodeBlock"
+    | InlineBlock _ -> "$$InlineBlock"
+    | ListBlock _ -> "$$ListBlock"
+    | QuotedBlock _ -> "$$QuotedBlock"
+    | Span _ -> "$$Span"
+    | LatexBlock _ -> "$$LatexBlock"
+    | HorizontalRule _ -> "$$HorizontalRule"
+    | TableBlock _ -> "$$TableBlock"
+    | EmbedParagraphs _ -> "$$EmbedParagraphs"
 
 let private toHtmlString (document : MarkdownDocument) : String =
     document.Paragraphs
