@@ -29,6 +29,8 @@ type BlogPost =
 
 type FetchPosts = unit -> BlogPost list
 
+type FetchPost = string -> BlogPost option
+
 // Disk serialisation
 let private shallowYamlDecode (yml : String) : Map<String, String> =
     yml
@@ -72,7 +74,7 @@ let private fromRawString (slug : String) (raw : String) : BlogPost =
       createdAt = createdAt
       body = body }
 
-let private fetchPostsFromDirectory (folder : String) : BlogPost list =
+let private loadPostsFromFolder (folder : String) : BlogPost list =
     folder
     |> System.IO.Directory.GetFiles
     |> Array.toList
@@ -81,6 +83,17 @@ let private fetchPostsFromDirectory (folder : String) : BlogPost list =
            path
            |> System.IO.File.ReadAllText
            |> fromRawString slug)
+
+let private safeFind predicate list =
+    try 
+        list
+        |> List.find predicate
+        |> Some
+    with :? System.Collections.Generic.KeyNotFoundException -> None
+
+let private fetchPost (posts : BlogPost list) (slug : String): BlogPost option =
+    posts
+        |> safeFind (fun p -> p.slug.Equals(slug))
 
 // HTML, Markdown formatting
 let rec private viewSpan (s : MarkdownSpan) =
@@ -147,18 +160,10 @@ let private derivePostUrl (post : BlogPost) : String =
     | _ -> failwith "Invalid filename"
 
 // Flows
-let private safeFind predicate list =
-    try 
-        list
-        |> List.find predicate
-        |> Some
-    with :? System.Collections.Generic.KeyNotFoundException -> None
-
-let private handleBlogPost (fetch : FetchPosts) (year, month, day, titleSlug) =
+let private handleBlogPost (fetch : FetchPost) (year, month, day, titleSlug) =
     request (fun r -> 
-        let allPosts = fetch()
         let slug = sprintf "%04i-%02i-%02i-%s" year month day titleSlug
-        let post = allPosts |> safeFind (fun p -> p.slug.Equals(slug))
+        let post = fetch slug
         
         let toDto (post : BlogPost) : PostHtmlDto =
             { title = post.title
@@ -200,12 +205,13 @@ let main _ =
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
     
-    let posts = fetchPostsFromDirectory "_posts"
+    let posts = loadPostsFromFolder "_posts"
     let fetchPosts = fun () -> posts
+    let fetchPost = fetchPost posts
     
     let app : WebPart =
         choose [ GET >=> path "/" >=> request (handleBlogPosts fetchPosts)
-                 GET >=> pathScan "/%i/%i/%i/%s" (handleBlogPost fetchPosts)
+                 GET >=> pathScan "/%i/%i/%i/%s" (handleBlogPost fetchPost)
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "Page not found." ]
     startWebServer config app
