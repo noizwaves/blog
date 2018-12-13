@@ -24,6 +24,18 @@ type Slug =
       day : int
       name : String }
 
+let slugFromUrlParts (year : string) (month : String) (day : String) (name : String) : Slug option =
+    let yearC = String.length year = 4
+    let monthC = String.length month = 2
+    let dayC = String.length day = 2
+    match (yearC && monthC && dayC) with
+    | true ->
+        Some { year = int year
+               month = int month
+               day = int day
+               name = name }
+    | false -> None
+
 type BlogPost =
     { slug : Slug
       title : String
@@ -163,31 +175,26 @@ type PostItemHtmlDto =
 type PostsHtmlDto =
     { posts : PostItemHtmlDto list }
 
-let formatCreateDate (value : DateTime) : String = value.ToString("MMM d, yyyy")
+let private formatCreateDate (value : DateTime) : String = value.ToString("MMM d, yyyy")
 let private derivePostUrl (post : BlogPost) : String =
     sprintf "/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
+
+let private toPostHtmlDto (post : BlogPost) : PostHtmlDto =
+    { title = post.title
+      createdAt = post.createdAt |> formatCreateDate
+      bodyHtml =
+          post.body
+          |> Markdown.Parse
+          |> toHtmlString }
 
 // Flows
 let private handleBlogPost (fetch : FetchPost) (year, month, day, titleSlug) =
     request (fun r -> 
-        let slug =
-            { year = year
-              month = month
-              day = day
-              name = titleSlug }
-        
-        let post = fetch slug
-        
-        let toDto (post : BlogPost) : PostHtmlDto =
-            { title = post.title
-              createdAt = post.createdAt |> formatCreateDate
-              bodyHtml =
-                  post.body
-                  |> Markdown.Parse
-                  |> toHtmlString }
-        
-        let dto : PostHtmlDto option = post |> Option.map toDto
-        match dto with
+        let post =
+            slugFromUrlParts year month day titleSlug
+            |> Option.bind fetch
+            |> Option.map toPostHtmlDto
+        match post with
         | Some dto -> page "post.html.liquid" dto
         | None -> NOT_FOUND "404")
 
@@ -223,8 +230,8 @@ let main _ =
     
     let app : WebPart =
         choose [ GET >=> path "/" >=> request (handleBlogPosts fetchPosts)
-                 GET >=> pathScan "/%i/%i/%i/%s" (handleBlogPost fetchPost)
+                 GET >=> pathScan "/%s/%s/%s/%s" (handleBlogPost fetchPost)
                  GET >=> Files.browseHome
-                 RequestErrors.NOT_FOUND "Page not found." ]
+                 RequestErrors.NOT_FOUND "404" ]
     startWebServer config app
     0
