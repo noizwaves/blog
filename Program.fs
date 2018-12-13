@@ -9,27 +9,30 @@ open Suave.RequestErrors
 open Suave.Json
 open Suave.Utils
 open System
+open System
 open System.Collections.Generic
 open System.IO
 open System.Text
 open FSharp.Markdown
 
 // Domain
-type CreateDate = CreateDate of System.DateTime
+let parseFromLongString (value : String) : DateTime option = Some <| System.DateTime.Parse value
 
-let parseFromLongString (value : String) : CreateDate option =
-    let date = System.DateTime.Parse(value)
-    Some <| CreateDate date
+type Slug =
+    { year : int
+      month : int
+      day : int
+      name : String }
 
 type BlogPost =
-    { slug : String
+    { slug : Slug
       title : String
-      createdAt : CreateDate
+      createdAt : DateTime
       body : String }
 
 type FetchPosts = unit -> BlogPost list
 
-type FetchPost = string -> BlogPost option
+type FetchPost = Slug -> BlogPost option
 
 // Disk serialisation
 let private shallowYamlDecode (yml : String) : Map<String, String> =
@@ -54,20 +57,26 @@ let private parsePostFile (raw : String) =
         (frontmatter, document)
     else (Map.empty, raw)
 
-let private fromRawString (slug : String) (raw : String) : BlogPost =
+let private fromRawString (filename : String) (raw : String) : BlogPost =
     let (frontMatter, body) = parsePostFile raw
-    let title = Map.tryFind "title" frontMatter |> Option.defaultValue (String.replace "-" " " slug)
+    let title = Map.find "title" frontMatter
+    let name = String.substring 11 filename
     
-    // Replace this with slug derived date as fallback
-    let fileCreatedAt =
-        sprintf "_posts/%s.md" slug
-        |> System.IO.File.GetCreationTime
-        |> CreateDate
+    let filenameCreatedAt =
+        match String.split '-' filename with
+        | year :: month :: day :: _ -> new DateTime(int year, int month, int day)
+        | _ -> failwith "Unable to parse date"
     
-    let createdAt =
+    let createdAt : DateTime =
         Map.tryFind "date" frontMatter
         |> Option.bind parseFromLongString
-        |> Option.defaultValue fileCreatedAt
+        |> Option.defaultValue filenameCreatedAt
+    
+    let slug =
+        { year = createdAt.Year
+          month = createdAt.Month
+          day = createdAt.Day
+          name = name }
     
     { slug = slug
       title = title
@@ -79,10 +88,10 @@ let private loadPostsFromFolder (folder : String) : BlogPost list =
     |> System.IO.Directory.GetFiles
     |> Array.toList
     |> List.map (fun path -> 
-           let slug = System.IO.Path.GetFileNameWithoutExtension path
+           let filename = System.IO.Path.GetFileNameWithoutExtension path
            path
            |> System.IO.File.ReadAllText
-           |> fromRawString slug)
+           |> fromRawString filename)
 
 let private safeFind predicate list =
     try 
@@ -91,7 +100,7 @@ let private safeFind predicate list =
         |> Some
     with :? System.Collections.Generic.KeyNotFoundException -> None
 
-let private findPostInList (posts : BlogPost list) (slug : String) : BlogPost option =
+let private findPostInList (posts : BlogPost list) (slug : Slug) : BlogPost option =
     posts |> safeFind (fun p -> p.slug.Equals(slug))
 
 // HTML, Markdown formatting
@@ -122,7 +131,10 @@ let private viewParagraph p =
     match p with
     | Heading(size, spans) -> sprintf "<h%i>%s</h%i>" size (viewSpans spans) size
     | Paragraph(spans) -> sprintf "<p>%s</p>" (viewSpans spans)
-    | CodeBlock(code, _, _) -> sprintf """<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>%s</code></pre></div></div>""" code
+    | CodeBlock(code, _, _) -> 
+        sprintf 
+            """<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>%s</code></pre></div></div>""" 
+            code
     | InlineBlock _ -> failwith "InlineBlock not translated yet"
     | ListBlock _ -> failwith "ListBlock not translated yet"
     | QuotedBlock _ -> failwith "QuotedBlock not translated yet"
@@ -151,17 +163,19 @@ type PostItemHtmlDto =
 type PostsHtmlDto =
     { posts : PostItemHtmlDto list }
 
-let formatCreateDate (CreateDate value) : String = value.ToString("MMM d, yyyy")
-
+let formatCreateDate (value : DateTime) : String = value.ToString("MMM d, yyyy")
 let private derivePostUrl (post : BlogPost) : String =
-    match String.split '-' post.slug with
-    | (year :: month :: day :: rest) -> sprintf "/%s/%s/%s/%s" year month day (String.concat "-" rest)
-    | _ -> failwith "Invalid filename"
+    sprintf "/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
 
 // Flows
 let private handleBlogPost (fetch : FetchPost) (year, month, day, titleSlug) =
     request (fun r -> 
-        let slug = sprintf "%04i-%02i-%02i-%s" year month day titleSlug
+        let slug =
+            { year = year
+              month = month
+              day = day
+              name = titleSlug }
+        
         let post = fetch slug
         
         let toDto (post : BlogPost) : PostHtmlDto =
