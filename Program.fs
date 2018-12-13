@@ -91,7 +91,7 @@ let private safeFind predicate list =
         |> Some
     with :? System.Collections.Generic.KeyNotFoundException -> None
 
-let private fetchPost (posts : BlogPost list) (slug : String): BlogPost option =
+let private findPostInList (posts : BlogPost list) (slug : String): BlogPost option =
     posts
         |> safeFind (fun p -> p.slug.Equals(slug))
 
@@ -207,7 +207,7 @@ let main _ =
     
     let posts = loadPostsFromFolder "_posts"
     let fetchPosts = fun () -> posts
-    let fetchPost = fetchPost posts
+    let fetchPost = findPostInList posts
     
     let app : WebPart =
         choose [ GET >=> path "/" >=> request (handleBlogPosts fetchPosts)
