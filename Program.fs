@@ -91,9 +91,8 @@ let private safeFind predicate list =
         |> Some
     with :? System.Collections.Generic.KeyNotFoundException -> None
 
-let private findPostInList (posts : BlogPost list) (slug : String): BlogPost option =
-    posts
-        |> safeFind (fun p -> p.slug.Equals(slug))
+let private findPostInList (posts : BlogPost list) (slug : String) : BlogPost option =
+    posts |> safeFind (fun p -> p.slug.Equals(slug))
 
 // HTML, Markdown formatting
 let rec private viewSpan (s : MarkdownSpan) =
@@ -123,7 +122,7 @@ let private viewParagraph p =
     match p with
     | Heading(size, spans) -> sprintf "<h%i>%s</h%i>" size (viewSpans spans) size
     | Paragraph(spans) -> sprintf "<p>%s</p>" (viewSpans spans)
-    | CodeBlock _ -> failwith "CodeBlock not translated yet"
+    | CodeBlock(code, _, _) -> sprintf """<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>%s</code></pre></div></div>""" code
     | InlineBlock _ -> failwith "InlineBlock not translated yet"
     | ListBlock _ -> failwith "ListBlock not translated yet"
     | QuotedBlock _ -> failwith "QuotedBlock not translated yet"
@@ -204,7 +203,6 @@ let main _ =
                              homeFolder = Some(Path.GetFullPath "./public") }
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
-    
     let posts = loadPostsFromFolder "_posts"
     let fetchPosts = fun () -> posts
     let fetchPost = findPostInList posts
