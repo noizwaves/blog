@@ -16,20 +16,20 @@ open System.Text
 open FSharp.Markdown
 
 // Domain
-let parseFromLongString (value : String) : DateTime option = Some <| System.DateTime.Parse value
+let parseFromLongString (value : string) : DateTime option = Some <| System.DateTime.Parse value
 
 type Slug =
     { year : int
       month : int
       day : int
-      name : String }
+      name : string }
 
-let slugFromUrlParts (year : string) (month : String) (day : String) (name : String) : Slug option =
+let slugFromUrlParts (year : string) (month : string) (day : string) (name : string) : Slug option =
     let yearC = String.length year = 4
     let monthC = String.length month = 2
     let dayC = String.length day = 2
     match (yearC && monthC && dayC) with
-    | true ->
+    | true -> 
         Some { year = int year
                month = int month
                day = int day
@@ -38,16 +38,16 @@ let slugFromUrlParts (year : string) (month : String) (day : String) (name : Str
 
 type BlogPost =
     { slug : Slug
-      title : String
+      title : string
       createdAt : DateTime
-      body : String }
+      body : string }
 
 type FetchPosts = unit -> BlogPost list
 
 type FetchPost = Slug -> BlogPost option
 
 // Disk serialisation
-let private shallowYamlDecode (yml : String) : Map<String, String> =
+let private shallowYamlDecode (yml : string) : Map<String, String> =
     yml
     |> String.split '\n'
     |> List.map (fun s -> 
@@ -57,7 +57,7 @@ let private shallowYamlDecode (yml : String) : Map<String, String> =
            (key, value))
     |> Map.ofList
 
-let private parsePostFile (raw : String) =
+let private parsePostFile (raw : string) =
     let split = raw.Split("---")
     if (split.Length >= 2) then 
         let document = Array.get split (split.Length - 1) |> String.trim
@@ -69,7 +69,7 @@ let private parsePostFile (raw : String) =
         (frontmatter, document)
     else (Map.empty, raw)
 
-let private fromRawString (filename : String) (raw : String) : BlogPost =
+let private fromRawString (filename : string) (raw : string) : BlogPost =
     let (frontMatter, body) = parsePostFile raw
     let title = Map.find "title" frontMatter
     let name = String.substring 11 filename
@@ -95,7 +95,7 @@ let private fromRawString (filename : String) (raw : String) : BlogPost =
       createdAt = createdAt
       body = body }
 
-let private loadPostsFromFolder (folder : String) : BlogPost list =
+let private loadPostsFromFolder (folder : string) : BlogPost list =
     folder
     |> System.IO.Directory.GetFiles
     |> Array.toList
@@ -156,27 +156,27 @@ let private viewParagraph p =
     | TableBlock _ -> failwith "TableBlock not translated yet"
     | EmbedParagraphs _ -> failwith "EmbedParagraphs not translated yet"
 
-let private toHtmlString (document : MarkdownDocument) : String =
+let private toHtmlString (document : MarkdownDocument) : string =
     document.Paragraphs
     |> List.map viewParagraph
     |> List.reduce (fun s1 s2 -> s1 + s2)
 
 // HTML
 type PostHtmlDto =
-    { title : String
-      createdAt : String
-      bodyHtml : String }
+    { title : string
+      createdAt : string
+      bodyHtml : string }
 
 type PostItemHtmlDto =
-    { title : String
-      createdAt : String
-      link : String }
+    { title : string
+      createdAt : string
+      link : string }
 
 type PostsHtmlDto =
     { posts : PostItemHtmlDto list }
 
-let private formatCreateDate (value : DateTime) : String = value.ToString("MMM d, yyyy")
-let private derivePostUrl (post : BlogPost) : String =
+let private formatCreateDate (value : DateTime) : string = value.ToString("MMM d, yyyy")
+let private derivePostUrl (post : BlogPost) : string =
     sprintf "/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
 
 let private toPostHtmlDto (post : BlogPost) : PostHtmlDto =
