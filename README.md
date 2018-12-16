@@ -7,5 +7,16 @@ A simpler more functional blog
 1.  `dotnet restore`
 1.  `dotnet run`
 1.  View the [blog](http://localhost:8080)
-1.  View a [post](http://localhost:8080/posts/hello-world)
+1.  View a [post](http://localhost:8080/2018/12/10/hello-fsharp-world)
 
+## Dependencies
+
+1.  Download and install [.NET Core SDK](https://dotnet.microsoft.com/download)
+1.  Install FAKE 5 via
+  1.  `dotnet tool install fake-cli -g`
+  1.  adding `$HOME/.dotnet/tools` to `PATH` (as [described here](https://github.com/dotnet/docs/blob/master/docs/core/tools/global-tools.md#install-a-global-tool))
+
+## Deploying
+
+1.  `fake build target Publish`
+1.  `cf push noizwaves-social-media -m 256M -p bin/Release/netcoreapp2.1/publish`
