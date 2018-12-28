@@ -7,17 +7,17 @@ open Suave.DotLiquid
 open Suave.RequestErrors
 open System
 
-type private PostHtmlDto =
+type PostHtmlDto =
     { title : string
       createdAt : string
       bodyHtml : string }
 
-type private PostItemHtmlDto =
+type PostItemHtmlDto =
     { title : string
       createdAt : string
       link : string }
 
-type private PostsHtmlDto =
+type PostsHtmlDto =
     { posts : PostItemHtmlDto list }
 
 let private formatCreateDate (value : DateTime) : string = value.ToString("MMM d, yyyy")
@@ -36,7 +36,7 @@ let private toItemDto (post : BlogPost) : PostItemHtmlDto =
 
 // Flows
 let handleBlogPost (fetch : FetchPost) (year, month, day, titleSlug) : WebPart =
-    request (fun r -> 
+    request (fun r ->
         let post =
             slugFromUrlParts year month day titleSlug
             |> Option.bind fetch
@@ -50,6 +50,6 @@ let handleBlogPosts (fetch : FetchPosts) request : WebPart =
         fetch()
         |> List.sortByDescending (fun p -> p.createdAt)
         |> List.map toItemDto
-    
+
     let model = { posts = posts }
     page "posts.html.liquid" model
