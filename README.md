@@ -1,6 +1,6 @@
-# social-media
+# noizwaves.github.io
 
-A simpler more functional blog
+Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
 ## Quick start
 
