@@ -7,7 +7,13 @@
 <header class="site-header">
   <div class="wrapper">
     <a class="site-title" href="/">Adam Neumann's blog</a>
-    <nav></nav>
+    <nav class="site-nav">
+      <div>
+        {% for page in model.navigablePages -%}
+        <a class="page-link" href="{{ page.url }}">{{ page.title }}</a>
+        {% endfor -%}
+      </div>
+    </nav>
   </div>
 </header>
 <main class="page-content">
