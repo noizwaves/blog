@@ -28,6 +28,15 @@ type BlogPost =
       createdAt : DateTime
       body : string }
 
+type Page =
+    { path : string
+      title : string
+      body : string }
+
 type FetchPosts = unit -> BlogPost list
 
 type FetchPost = Slug -> BlogPost option
+
+type FetchPages = unit -> Page list
+
+type FetchPage = string -> Page option

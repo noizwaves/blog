@@ -1,0 +1,8 @@
+---
+title: About
+---
+
+Welcome to my blog!
+It is written in F# and is powered by .NET Core and Suave.IO.
+It is hosted on Pivotal Web Services.
+The source code is available in [this repo](https://github.com/noizwaves/noizwaves.github.io/tree/fs).

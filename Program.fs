@@ -5,7 +5,6 @@ open Suave
 open Suave.DotLiquid
 open Suave.Filters
 open Suave.Operators
-open Suave.RequestErrors
 open Suave.Utils
 open System
 open System.IO
@@ -27,10 +26,13 @@ let main _ =
     let posts = Persistence.loadPostsFromFolder "_posts"
     let fetchPosts = fun () -> posts
     let fetchPost = Persistence.findPostInList posts
+    let pages = Persistence.loadPagesFromFolder "_pages"
+    let fetchPage = Persistence.findPageInList pages
     
     let app : WebPart =
         choose [ GET >=> path "/" >=> request (Html.handleBlogPosts fetchPosts)
                  GET >=> pathScan "/%s/%s/%s/%s" (Html.handleBlogPost fetchPost)
+                 GET >=> pathScan "/pages/%s" (Html.handlePage fetchPage)
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "404" ]
     startWebServer config app

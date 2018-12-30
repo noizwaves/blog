@@ -26,9 +26,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Templates Include="templates/**" />
+    <PageResources Include="_pages/*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Templates Include="templates/**" />
+  </ItemGroup>
 
   <ItemGroup>
     <Publics Include="public/**" />
@@ -36,6 +39,7 @@
 
   <Target Name="CopyResources" AfterTargets="Publish">
     <Copy SourceFiles="@(PostResources)" DestinationFolder="$(PublishDir)/_posts" />
+    <Copy SourceFiles="@(PageResources)" DestinationFolder="$(PublishDir)/_pages" />
     <Copy SourceFiles="@(Templates)" DestinationFolder="$(PublishDir)/templates" />
     <Copy SourceFiles="@(Publics)" DestinationFiles="@(Publics->'$(PublishDir)/public/%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
