@@ -19,4 +19,4 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 ## Deploying
 
 1.  `fake build target Publish`
-1.  `cf push noizwaves-social-media -m 256M -p bin/Release/netcoreapp2.1/publish`
+1.  `cf push`

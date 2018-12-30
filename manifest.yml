@@ -1,0 +1,10 @@
+---
+applications:
+- name: blog
+  path: bin/Release/netcoreapp2.1/publish
+  memory: 256M
+  buildpacks:
+  - buildpack: dotnet_core_buildpack
+  routes:
+  - route: blog-noizwaves-io.cfapps.io
+  - route: blog.noizwaves.io
