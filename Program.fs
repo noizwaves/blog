@@ -31,6 +31,7 @@ let main _ =
     
     let app : WebPart =
         choose [ GET >=> path "/" >=> request (Html.handleBlogPosts fetchPosts pages)
+                 GET >=> pathScan "/%s/%s/%s/%s.html" (Html.handleBlogPost fetchPost pages)
                  GET >=> pathScan "/%s/%s/%s/%s" (Html.handleBlogPost fetchPost pages)
                  GET >=> pathScan "/pages/%s" (Html.handlePage fetchPage pages)
                  GET >=> Files.browseHome
