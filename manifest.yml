@@ -1,7 +1,7 @@
 ---
 applications:
 - name: blog
-  path: bin/Release/netcoreapp2.1/publish
+  path: bin/Release/netcoreapp2.2/publish
   memory: 256M
   buildpacks:
   - dotnet_core_buildpack
