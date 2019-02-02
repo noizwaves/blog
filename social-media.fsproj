@@ -42,6 +42,6 @@
     <Copy SourceFiles="@(PageResources)" DestinationFolder="$(PublishDir)/_pages" />
     <Copy SourceFiles="@(Templates)" DestinationFolder="$(PublishDir)/templates" />
     <Copy SourceFiles="@(Publics)" DestinationFiles="@(Publics->'$(PublishDir)/public/%(RecursiveDir)%(Filename)%(Extension)')" />
-  </Target>
+</Target>
 
 </Project>
