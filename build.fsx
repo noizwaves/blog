@@ -41,7 +41,7 @@ Target.create "CleanCss" (fun _ ->
 )
 
 Target.create "BuildCss" (fun _ ->
-    let srcPath = "style/src/app.scss"
+    let srcPath = "style/src/minima.scss"
     let destPath = "public/static/app.css"
 
     let scssOptions = new ScssOptions (OutputStyle = ScssOutputStyle.Compressed)
