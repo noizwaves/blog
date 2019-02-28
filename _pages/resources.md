@@ -17,6 +17,7 @@ title: Resources
 
 ### My *'to read'* list
 
+- Accelerate by Nicole Forsgren PhD, Jez Humble, and Gene Kim
 - Working Effectively with Unit Tests by Jay Fields
 - [A Taste of Category Theory for Computer Scientists by Benjamin C. Pierce](http://repository.cmu.edu/cgi/viewcontent.cgi?article=2846&context=compsci)
 - Expert F# by Don Sym
