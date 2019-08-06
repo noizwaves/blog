@@ -2,7 +2,8 @@
 applications:
 - name: blog
   path: bin/Release/netcoreapp2.2/publish
-  memory: 256M
+  memory: 128M
+  instances: 2
   buildpacks:
   - dotnet_core_buildpack
   routes:
