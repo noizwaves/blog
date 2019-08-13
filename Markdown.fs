@@ -43,7 +43,10 @@ let rec private viewParagraph p =
             |> List.map (sprintf "<li>%s</li>")
             |> joinStrings
             |> sprintf "<ul>%s</ul>"
-    | QuotedBlock _ -> failwith "QuotedBlock not translated yet"
+    | QuotedBlock(paragraphs) ->
+            paragraphs
+            |> viewParagraphs
+            |> sprintf "<blockquote>%s</blockquote>"
     | Span(spans) -> spans |> viewSpans |> sprintf "<span>%s</span>"
     | LatexBlock _ -> failwith "LatexBlock not translated yet"
     | HorizontalRule _ -> failwith "HorizontalRule not translated yet"
