@@ -32,12 +32,12 @@ let private fromRawString (filename : string) (raw : string) : BlogPost =
     let title = Map.find "title" frontMatter
     let name = String.substring 11 filename
 
-    let filenameCreatedAt =
+    let filenameCreatedAt : DateTimeOffset =
         match String.split '-' filename with
-        | year :: month :: day :: _ -> new DateTime(int year, int month, int day)
+        | year :: month :: day :: _ -> DateTimeOffset(int year, int month, int day, 0, 0, 0, TimeSpan.Zero)
         | _ -> failwith "Unable to parse date"
 
-    let createdAt : DateTime =
+    let createdAt : DateTimeOffset =
         Map.tryFind "date" frontMatter
         |> Option.bind parseFromLongString
         |> Option.defaultValue filenameCreatedAt

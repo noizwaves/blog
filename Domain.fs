@@ -2,7 +2,7 @@ module NoizwavesBlog.Domain
 
 open System
 
-let parseFromLongString (value : string) : DateTime option = Some <| System.DateTime.Parse value
+let parseFromLongString (value : string) : DateTimeOffset option = Some <| System.DateTimeOffset.Parse value
 
 type Slug =
     { year : int
@@ -25,7 +25,7 @@ let slugFromUrlParts (year : string) (month : string) (day : string) (name : str
 type BlogPost =
     { slug : Slug
       title : string
-      createdAt : DateTime
+      createdAt : DateTimeOffset
       body : string }
 
 type Page =

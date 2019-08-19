@@ -32,7 +32,7 @@ type PageHtmlDto =
       navigablePages : PageLinkDto list
       bodyHtml : string }
 
-let private formatCreateDate (value : DateTime) : string = value.ToString("MMM d, yyyy")
+let private formatCreateDate (value : DateTimeOffset) : string = value.ToString("MMM d, yyyy")
 let private derivePostUrl (post : BlogPost) : string =
     sprintf "/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
 
