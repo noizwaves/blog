@@ -10,6 +10,7 @@
     <Compile Include="Domain.fs" />
     <Compile Include="Persistence.fs" />
     <Compile Include="Markdown.fs" />
+    <Compile Include="OwnMarkdown.fs" />
     <Compile Include="Html.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

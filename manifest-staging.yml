@@ -1,7 +1,7 @@
 ---
 applications:
 - name: blog-staging
-  path: bin/Release/netcoreapp2.2/publish
+  path: NoizwavesBlog/bin/Release/netcoreapp2.2/publish
   memory: 64M
   instances: 1
   buildpacks:
