@@ -16,31 +16,71 @@ type private RawMarkdownText = string
 
 type private Token
     = Text of string
+    | NewLine
     | EOF
+
+let private tokenLength (t: Token) : int =
+    match t with
+    | Text text -> String.length text
+    | NewLine -> 1
+    | EOF -> 0
 
 type private Tokens = Token list
 
-type private Scanner = RawMarkdownText -> Token
+// type private Scanner = RawMarkdownText -> Token
 
-let private textScanner (s : RawMarkdownText) : Token =
-    Text s
+let private textScanner (s : RawMarkdownText) : Token option =
+    s
+    |> Seq.toList
+    |> List.takeWhile (fun c -> c <> '\n')
+    |> List.toArray
+    |> System.String
+    |> Text
+    |> Some
 
-let private tokenize (s : RawMarkdownText) : Tokens =
-    [ textScanner s; EOF ]
+let private newLineScanner (s : RawMarkdownText) : Token option =
+    if s.StartsWith '\n' then
+        Some NewLine
+    else
+        None
+
+let rec private tokenize (s : RawMarkdownText) : Tokens =
+    if s = "" then
+        [ EOF ]
+    else    
+        let newLineMatch = newLineScanner s
+        let textMatch = textScanner s
+
+        match (newLineMatch, textMatch) with
+        | Some token, _ ->
+            let consumed = tokenLength token
+            let untokenized = String.substring consumed s
+            token :: (tokenize untokenized)
+        | _, Some token ->
+            let consumed = tokenLength token
+            let untokenized = String.substring consumed s
+            token :: (tokenize untokenized)
+        | None, None -> failwith "no token match"
 
 // Parsing
 // Markdown grammar is:
-// Body               := Paragraph
+// Body               := Paragraph*
 // Paragraph          := SentenceAndEOF
-// SentencesAndEOF    := Sentence T(EOF)
+//                     | SentenceAndNewLine
+// SentenceAndEOF     := Sentence T(EOF)
+//                     | Sentence T(NewLine) T(EOF)
+// SentenceAndNewLine := Sentence T(NewLine) T(NewLine)
 // Sentence           := Text
 // Text               := T(Text)
 
 type private TextNode = TextValue of string
 type private SentenceNode = Text of TextNode
 type private SentenceAndEOFNode = Sentence of SentenceNode
-type private ParagraphNode = SentenceAndEOF of SentenceAndEOFNode
-type private BodyNode = Paragraph of ParagraphNode
+type private SentenceAndNewLineNode = Sentence of SentenceNode
+type private ParagraphNode = 
+    | SentenceAndEOF of SentenceAndEOFNode
+    | SentenceAndNewLine of SentenceAndNewLineNode
+type private BodyNode = Paragraphs of ParagraphNode list
 
 let private textParser (tokens : Tokens) : (TextNode * int) option =
     match tokens with
@@ -56,19 +96,44 @@ let private sentenceAndEOFParser (tokens : Tokens) : (SentenceAndEOFNode * int) 
     match sentenceParser tokens with
     | Some (sentenceNode, consumed) ->
         match List.skip consumed tokens with
-        | EOF :: _ -> Some (Sentence sentenceNode, consumed + 1)
+        | EOF :: _ -> Some (SentenceAndEOFNode.Sentence sentenceNode, consumed + 1)
+        | NewLine :: EOF ::_ -> Some (SentenceAndEOFNode.Sentence sentenceNode, consumed + 2)
+        | _ -> None
+    | None -> None
+
+let private sentenceAndNewLineParser (tokens : Tokens) : (SentenceAndNewLineNode * int) option =
+    match sentenceParser tokens with
+    | Some (sentenceNode, consumed) ->
+        match List.skip consumed tokens with
+        | NewLine :: NewLine :: _ -> Some (SentenceAndNewLineNode.Sentence sentenceNode, consumed + 2)
         | _ -> None
     | None -> None
 
 let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
-    match sentenceAndEOFParser tokens with
-    | Some (sentenceAndEOFNode, consumed) -> Some (SentenceAndEOF sentenceAndEOFNode, consumed)
-    | None -> None
+    let eofMatch = sentenceAndEOFParser tokens
+    let newLineMatch = sentenceAndNewLineParser tokens
+    match eofMatch, newLineMatch with
+    | ( Some (sentenceAndEOFNode, consumed), _ ) -> Some (SentenceAndEOF sentenceAndEOFNode, consumed)
+    | ( _, Some (sentenceAndNewLineNode, consumed) ) -> Some (SentenceAndNewLine sentenceAndNewLineNode, consumed)
+    | ( None, None )  -> None
+
+let rec private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode list * int =
+    match paragraphNodeParser tokens with
+    | None -> [], 0
+    | Some (paragraphNode, consumed) ->
+        let more, moreConsumed =
+            tokens
+            |> List.skip consumed
+            |> matchStarParagraphNodeParser
+        
+        paragraphNode :: more, consumed + moreConsumed
 
 let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
-    match paragraphNodeParser tokens with
-    | Some (paragraphNode, consumed) -> Some (Paragraph paragraphNode, consumed)
-    | None -> None
+    let paragraphs, consumed = matchStarParagraphNodeParser tokens
+
+    // TODO: this is always `Some`
+    // probably because of the match star in the grammar
+    (Paragraphs paragraphs, consumed) |> Some
 
 let private parse (tokens : Tokens) : BodyNode option =
     match bodyNodeParser tokens with
@@ -83,11 +148,14 @@ let private parse (tokens : Tokens) : BodyNode option =
 
 let private renderParagraph (paragraph : ParagraphNode) : MarkdownParagraph =
     match paragraph with
-    | SentenceAndEOF (Sentence (Text (TextValue value))) -> MarkdownParagraph.Paragraph [ Span value ]
+    | SentenceAndEOF (SentenceAndEOFNode.Sentence (Text (TextValue value))) -> MarkdownParagraph.Paragraph [ Span value ]
+    | SentenceAndNewLine (SentenceAndNewLineNode.Sentence (Text (TextValue value))) -> MarkdownParagraph.Paragraph [ Span value ]
 
 let private render (body : BodyNode) : Markdown =
     match body with
-    | Paragraph paragraph -> [ renderParagraph paragraph ]
+    | Paragraphs paragraphs ->
+        paragraphs
+        |> List.map renderParagraph
 
 // public functions
 
