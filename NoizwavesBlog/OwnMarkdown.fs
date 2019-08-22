@@ -176,7 +176,7 @@ let private renderLine (line : LineNode) : MarkdownElement =
     match line with
     | LineNode.Sentence (Text (TextValue value)) -> Span value
 
-let private renderSubsequentLine (line : SubsequentLineNode) =
+let private renderSubsequentLine (line : SubsequentLineNode) : MarkdownElement =
     match line with
     | SubsequentLineNode.Sentence (Text (TextValue value)) -> Span value
 
