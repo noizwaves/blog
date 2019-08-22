@@ -51,3 +51,19 @@ let ``Multiple paragraphs`` () =
 Bar
 Baz"""
     Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Emphasized text in a paragraph`` () =
+    let expected : Markdown =
+        [ Paragraph [ Emphasized "Foo" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """_Foo_"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Mix of regular and emphasized text in a paragraph`` () =
+    let expected : Markdown =
+        [ Paragraph [ Emphasized "Foo"; Span " Bar"; Span "Baz "; Emphasized "Czar" ]
+        ]
+    let actual : Markdown = Option.get <| ParseOwn """_Foo_ Bar
+Baz _Czar_"""
+    Assert.Equal<Markdown> (expected, actual)

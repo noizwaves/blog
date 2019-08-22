@@ -2,8 +2,9 @@ module NoizwavesBlog.OwnMarkdown
 
 // public interface
 
-type MarkdownElement =
-    Span of string
+type MarkdownElement
+    = Span of string
+    | Emphasized of string
 
 type MarkdownParagraph =
     Paragraph of MarkdownElement list
@@ -16,12 +17,14 @@ type private RawMarkdownText = string
 
 type private Token
     = Text of string
+    | Underscore
     | NewLine
     | EOF
 
 let private tokenLength (t: Token) : int =
     match t with
     | Text text -> String.length text
+    | Underscore -> 1
     | NewLine -> 1
     | EOF -> 0
 
@@ -30,9 +33,11 @@ type private Tokens = Token list
 // type private Scanner = RawMarkdownText -> Token
 
 let private textScanner (s : RawMarkdownText) : Token option =
+    let stopAt = [ '\n'; '_' ]
+
     s
     |> Seq.toList
-    |> List.takeWhile (fun c -> c <> '\n')
+    |> List.takeWhile (fun c -> stopAt |> List.contains c |> not)
     |> List.toArray
     |> System.String
     |> Text
@@ -44,23 +49,34 @@ let private newLineScanner (s : RawMarkdownText) : Token option =
     else
         None
 
+let private underscoreScanner (s : RawMarkdownText) : Token option =
+    if s.StartsWith '_' then
+        Some Underscore
+    else
+        None    
+
 let rec private tokenize (s : RawMarkdownText) : Tokens =
     if s = "" then
         [ EOF ]
     else    
         let newLineMatch = newLineScanner s
+        let underscoreMatch = underscoreScanner s
         let textMatch = textScanner s
 
-        match (newLineMatch, textMatch) with
-        | Some token, _ ->
+        match (newLineMatch, underscoreMatch, textMatch) with
+        | Some token, _, _ ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | _, Some token ->
+        | _, Some token, _ ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | None, None -> failwith "no token match"
+        | _, _, Some token ->
+            let consumed = tokenLength token
+            let untokenized = String.substring consumed s
+            token :: (tokenize untokenized)
+        | None, None, None -> failwith "no token match"
 
 // Grammar builders
 
@@ -80,16 +96,21 @@ let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : 'a list * in
 // Parsing
 // Markdown grammar is:
 // Body               := Paragraph* T(EOF)
-// Paragraph          := Line SubsequentLine* T(NewLine)*
-// SubsequentLine     := T(NewLine) Sentence
-// Line               := Sentence
-// Sentence           := Text
+// Paragraph          := Line SubsequentLine* T(NewLine)* // TODO: make * a +
+// SubsequentLine     := T(NewLine) Sentence+
+// Line               := Sentence+
+// Sentence           := EmphasizedText
+//                     | Text
+// EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // Text               := T(Text)
 
 type private TextNode = TextValue of string
-type private SentenceNode = Text of TextNode
-type private LineNode = Sentence of SentenceNode
-type private SubsequentLineNode = Sentence of SentenceNode
+type private EmphasizedTextNode = EmphasizedTextValue of string
+type private SentenceNode
+    = Text of TextNode
+    | EmphasizedText of EmphasizedTextNode
+type private LineNode = Sentence of SentenceNode list
+type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
@@ -98,22 +119,31 @@ let private textParser (tokens : Tokens) : (TextNode * int) option =
     | Token.Text s :: _ -> (TextValue s, 1) |> Some
     | _ -> None
 
+let private emphasizedTextParser (tokens : Tokens) : (EmphasizedTextNode * int) option =
+    match tokens with
+    | Token.Underscore :: Token.Text s :: Token.Underscore :: _ -> (EmphasizedTextValue s, 3) |> Some
+    | _ -> None
+
 let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
-    match textParser tokens with
-    | Some (textNode, consumed) -> Some (Text textNode, consumed)
-    | None -> None
+    match emphasizedTextParser tokens, textParser tokens with
+    | Some (emphasizedTextNode, consumed), _ -> Some (EmphasizedText emphasizedTextNode, consumed)
+    | _, Some (textNode, consumed) -> Some (Text textNode, consumed)
+    | None, None -> None
+
+let private matchStarSentenceParser (tokens : Tokens) : SentenceNode list * int =
+    matchStar sentenceParser tokens
 
 let private lineParser (tokens : Tokens) : (LineNode * int) option =
-    match sentenceParser tokens with
-    | Some (sentenceNode, consumed) -> Some (LineNode.Sentence sentenceNode, consumed)
-    | None -> None
+    match matchStarSentenceParser tokens with
+    | [], _ -> None
+    | sentenceNodes, consumed -> Some (LineNode.Sentence sentenceNodes, consumed)
 
 let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) option =
     match tokens with
     | NewLine :: other ->
-        match sentenceParser other with
-        | Some (sentenceNode, consumed) -> Some (SubsequentLineNode.Sentence sentenceNode, consumed + 1)
-        | None -> None
+        match matchStarSentenceParser other with
+        | [], _ -> None
+        | sentenceNodes, consumed -> Some (SubsequentLineNode.Sentence sentenceNodes, consumed + 1)
     | _ -> None
 
 let private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
@@ -172,18 +202,29 @@ let private parse (tokens : Tokens) : BodyNode option =
 
 // AST to public types
 
-let private renderLine (line : LineNode) : MarkdownElement =
-    match line with
-    | LineNode.Sentence (Text (TextValue value)) -> Span value
+let private renderSentence (sentence : SentenceNode) : MarkdownElement =
+    match sentence with
+    | Text (TextValue value) -> Span value
+    | EmphasizedText (EmphasizedTextValue value) -> Emphasized value
 
-let private renderSubsequentLine (line : SubsequentLineNode) : MarkdownElement =
+let private renderLine (line : LineNode) : MarkdownElement list =
     match line with
-    | SubsequentLineNode.Sentence (Text (TextValue value)) -> Span value
+    | LineNode.Sentence sentences ->
+        sentences
+        |> List.map renderSentence
+
+let private renderSubsequentLine (line : SubsequentLineNode) : MarkdownElement list =
+    match line with
+    | SubsequentLineNode.Sentence sentences ->
+        sentences
+        |> List.map renderSentence
 
 let private renderParagraph (paragraph : ParagraphNode) : MarkdownParagraph =
     match paragraph with
     | Lines (line, subsequent) ->
-        let spans = renderLine line :: (List.map renderSubsequentLine subsequent)
+        let flatten = List.fold List.append []
+
+        let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
 
