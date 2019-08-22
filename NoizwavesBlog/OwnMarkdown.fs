@@ -138,8 +138,7 @@ let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
     | _, Some (textNode, consumed) -> Some (Text textNode, consumed)
     | None, None -> None
 
-let private matchPlusSentenceParser (tokens : Tokens) : (SentenceNode list * int) option =
-    matchPlus sentenceParser tokens
+let private matchPlusSentenceParser = matchPlus sentenceParser
 
 let private lineParser (tokens : Tokens) : (LineNode * int) option =
     match matchPlusSentenceParser tokens with
@@ -154,16 +153,14 @@ let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) 
         | None -> None
     | _ -> None
 
-let private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
-    matchStar subsequentLineParser tokens
+let private matchStarSubsequentLineNodeParser = matchStar subsequentLineParser
 
 let private newLineParser (tokens : Tokens) : (unit * int) option =
     match tokens with
     | NewLine :: _ -> Some <| ((), 1)
     | _ -> None
 
-let private matchStarNewLineParser (tokens : Tokens) : unit list * int =
-    matchStar newLineParser tokens
+let private matchStarNewLineParser = matchStar newLineParser
 
 let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
     match lineParser tokens with
@@ -185,8 +182,7 @@ let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option
         (paragraph, totalConsumed + newLinesConsumed) |> Some
     | None -> None
 
-let private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode list * int =
-    matchStar paragraphNodeParser tokens
+let private matchStarParagraphNodeParser = matchStar paragraphNodeParser
 
 let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
     let paragraphs, consumed = matchStarParagraphNodeParser tokens
