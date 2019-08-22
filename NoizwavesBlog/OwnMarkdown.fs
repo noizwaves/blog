@@ -98,16 +98,19 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) 
     | [], _ -> None
     | nodes, consumed -> Some (nodes, consumed)
 
-// Parsing
-// Markdown grammar is:
+// Grammar is:
 // Body               := Paragraph* T(EOF)
-// Paragraph          := Line SubsequentLine* T(NewLine)* // TODO: make * a +
+// Paragraph          := Line SubsequentLine* T(NewLine)*
 // SubsequentLine     := T(NewLine) Sentence+
 // Line               := Sentence+
 // Sentence           := EmphasizedText
 //                     | Text
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // Text               := T(Text)
+
+// Known grammar issues
+// - non-terminating paragraphs must have a T(NewLine)
+//   - * should be + for these
 
 type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
