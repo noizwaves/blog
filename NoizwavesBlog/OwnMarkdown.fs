@@ -138,29 +138,23 @@ let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
     | _, Some (textNode, consumed) -> Some (Text textNode, consumed)
     | None, None -> None
 
-let private matchPlusSentenceParser = matchPlus sentenceParser
-
 let private lineParser (tokens : Tokens) : (LineNode * int) option =
-    match matchPlusSentenceParser tokens with
+    match matchPlus sentenceParser tokens with
     | Some (sentenceNodes, consumed) -> Some (LineNode.Sentence sentenceNodes, consumed)
     | None -> None
 
 let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) option =
     match tokens with
     | NewLine :: other ->
-        match matchPlusSentenceParser other with
+        match matchPlus sentenceParser other with
         | Some (sentenceNodes, consumed) -> Some (SubsequentLineNode.Sentence sentenceNodes, consumed + 1)
         | None -> None
     | _ -> None
-
-let private matchStarSubsequentLineNodeParser = matchStar subsequentLineParser
 
 let private newLineParser (tokens : Tokens) : (unit * int) option =
     match tokens with
     | NewLine :: _ -> Some <| ((), 1)
     | _ -> None
-
-let private matchStarNewLineParser = matchStar newLineParser
 
 let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
     match lineParser tokens with
@@ -168,7 +162,7 @@ let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option
         let subsequentLines, subsequentConsumed = 
             tokens
             |> List.skip consumed
-            |> matchStarSubsequentLineNodeParser
+            |> matchStar subsequentLineParser
 
         let paragraph = ParagraphNode.Lines (line, subsequentLines)
         let totalConsumed = consumed + subsequentConsumed
@@ -177,15 +171,13 @@ let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option
         let _, newLinesConsumed =
             tokens
             |> List.skip totalConsumed
-            |> matchStarNewLineParser
+            |> matchStar newLineParser
 
         (paragraph, totalConsumed + newLinesConsumed) |> Some
     | None -> None
 
-let private matchStarParagraphNodeParser = matchStar paragraphNodeParser
-
 let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
-    let paragraphs, consumed = matchStarParagraphNodeParser tokens
+    let paragraphs, consumed = matchStar paragraphNodeParser tokens
 
     let remaining =
         tokens
