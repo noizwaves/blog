@@ -32,22 +32,22 @@ let ``Multiple single line paragraphs`` () =
 Bar"""
     Assert.Equal<Markdown> (expected, actual)
 
-// [<Fact>]
-// let ``Multiple line paragraph`` () =
-//     let expected : Markdown =
-//         [ Paragraph [ Span "Foo"; Span "Bar" ] ]
-//     let actual : Markdown = Option.get <| ParseOwn """Foo
-// Bar"""
-//     Assert.Equal<Markdown> (expected, actual)
+[<Fact>]
+let ``Multiple line paragraph`` () =
+    let expected : Markdown =
+        [ Paragraph [ Span "Foo"; Span "Bar" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """Foo
+Bar"""
+    Assert.Equal<Markdown> (expected, actual)
 
-// [<Fact>]
-// let ``Multiple paragraphs`` () =
-//     let expected : Markdown =
-//         [ Paragraph [ Span "Foo" ]
-//         ; Paragraph [ Span "Bar"; Span "Baz" ]
-//         ]
-//     let actual : Markdown = ParseOwn """Foo
+[<Fact>]
+let ``Multiple paragraphs`` () =
+    let expected : Markdown =
+        [ Paragraph [ Span "Foo" ]
+        ; Paragraph [ Span "Bar"; Span "Baz" ]
+        ]
+    let actual : Markdown = Option.get <| ParseOwn """Foo
 
-// Bar
-// Baz"""
-//     Assert.Equal<Markdown> (expected, actual)
+Bar
+Baz"""
+    Assert.Equal<Markdown> (expected, actual)

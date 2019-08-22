@@ -64,22 +64,18 @@ let rec private tokenize (s : RawMarkdownText) : Tokens =
 
 // Parsing
 // Markdown grammar is:
-// Body               := Paragraph*
-// Paragraph          := SentenceAndEOF
-//                     | SentenceAndNewLine
-// SentenceAndEOF     := Sentence T(EOF)
-//                     | Sentence T(NewLine) T(EOF)
-// SentenceAndNewLine := Sentence T(NewLine) T(NewLine)
+// Body               := Paragraph* T(EOF)
+// Paragraph          := Line SubsequentLine* T(NewLine)*
+// SubsequentLine     := T(NewLine) Sentence
+// Line               := Sentence
 // Sentence           := Text
 // Text               := T(Text)
 
 type private TextNode = TextValue of string
 type private SentenceNode = Text of TextNode
-type private SentenceAndEOFNode = Sentence of SentenceNode
-type private SentenceAndNewLineNode = Sentence of SentenceNode
-type private ParagraphNode = 
-    | SentenceAndEOF of SentenceAndEOFNode
-    | SentenceAndNewLine of SentenceAndNewLineNode
+type private LineNode = Sentence of SentenceNode
+type private SubsequentLineNode = Sentence of SentenceNode
+type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
 let private textParser (tokens : Tokens) : (TextNode * int) option =
@@ -92,30 +88,65 @@ let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
     | Some (textNode, consumed) -> Some (Text textNode, consumed)
     | None -> None
 
-let private sentenceAndEOFParser (tokens : Tokens) : (SentenceAndEOFNode * int) option =
+let private lineParser (tokens : Tokens) : (LineNode * int) option =
     match sentenceParser tokens with
-    | Some (sentenceNode, consumed) ->
-        match List.skip consumed tokens with
-        | EOF :: _ -> Some (SentenceAndEOFNode.Sentence sentenceNode, consumed + 1)
-        | NewLine :: EOF ::_ -> Some (SentenceAndEOFNode.Sentence sentenceNode, consumed + 2)
-        | _ -> None
+    | Some (sentenceNode, consumed) -> Some (LineNode.Sentence sentenceNode, consumed)
     | None -> None
 
-let private sentenceAndNewLineParser (tokens : Tokens) : (SentenceAndNewLineNode * int) option =
-    match sentenceParser tokens with
-    | Some (sentenceNode, consumed) ->
-        match List.skip consumed tokens with
-        | NewLine :: NewLine :: _ -> Some (SentenceAndNewLineNode.Sentence sentenceNode, consumed + 2)
-        | _ -> None
-    | None -> None
+let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) option =
+    match tokens with
+    | NewLine :: other ->
+        match sentenceParser other with
+        | Some (sentenceNode, consumed) -> Some (SubsequentLineNode.Sentence sentenceNode, consumed + 1)
+        | None -> None
+    | _ -> None
+
+let rec private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
+    match subsequentLineParser tokens with
+    | None -> [], 0
+    | Some (subsequentLineNode, consumed) ->
+        let more, moreConsumed =
+            tokens
+            |> List.skip consumed
+            |> matchStarSubsequentLineNodeParser
+
+        subsequentLineNode :: more, consumed + moreConsumed        
+
+let private newLineParser (tokens : Tokens) : (unit * int) option =
+    match tokens with
+    | NewLine :: _ -> Some <| ((), 1)
+    | _ -> None
+
+let rec private matchStarNewLineParser (tokens : Tokens) : unit list * int =
+    match newLineParser tokens with
+    | None -> [], 0
+    | Some (node, consumed) ->
+        let more, moreConsumed =
+            tokens
+            |> List.skip consumed
+            |> matchStarNewLineParser
+
+        node :: more, consumed + moreConsumed
 
 let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
-    let eofMatch = sentenceAndEOFParser tokens
-    let newLineMatch = sentenceAndNewLineParser tokens
-    match eofMatch, newLineMatch with
-    | ( Some (sentenceAndEOFNode, consumed), _ ) -> Some (SentenceAndEOF sentenceAndEOFNode, consumed)
-    | ( _, Some (sentenceAndNewLineNode, consumed) ) -> Some (SentenceAndNewLine sentenceAndNewLineNode, consumed)
-    | ( None, None )  -> None
+    match lineParser tokens with
+    | Some (line, consumed) ->
+        let subsequentLines, subsequentConsumed = 
+            tokens
+            |> List.skip consumed
+            |> matchStarSubsequentLineNodeParser
+
+        let paragraph = ParagraphNode.Lines (line, subsequentLines)
+        let totalConsumed = consumed + subsequentConsumed
+
+        // trailing new lines
+        let _, newLinesConsumed =
+            tokens
+            |> List.skip totalConsumed
+            |> matchStarNewLineParser
+
+        (paragraph, totalConsumed + newLinesConsumed) |> Some
+    | None -> None
 
 let rec private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode list * int =
     match paragraphNodeParser tokens with
@@ -131,9 +162,13 @@ let rec private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode l
 let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
     let paragraphs, consumed = matchStarParagraphNodeParser tokens
 
-    // TODO: this is always `Some`
-    // probably because of the match star in the grammar
-    (Paragraphs paragraphs, consumed) |> Some
+    let remaining =
+        tokens
+        |> List.skip consumed
+
+    match remaining with
+    | [ EOF ] -> (Paragraphs paragraphs, consumed + 1) |> Some
+    | _ -> None
 
 let private parse (tokens : Tokens) : BodyNode option =
     match bodyNodeParser tokens with
@@ -146,10 +181,20 @@ let private parse (tokens : Tokens) : BodyNode option =
 
 // AST to public types
 
+let private renderLine (line : LineNode) : MarkdownElement =
+    match line with
+    | LineNode.Sentence (Text (TextValue value)) -> Span value
+
+let private renderSubsequentLine (line : SubsequentLineNode) =
+    match line with
+    | SubsequentLineNode.Sentence (Text (TextValue value)) -> Span value
+
 let private renderParagraph (paragraph : ParagraphNode) : MarkdownParagraph =
     match paragraph with
-    | SentenceAndEOF (SentenceAndEOFNode.Sentence (Text (TextValue value))) -> MarkdownParagraph.Paragraph [ Span value ]
-    | SentenceAndNewLine (SentenceAndNewLineNode.Sentence (Text (TextValue value))) -> MarkdownParagraph.Paragraph [ Span value ]
+    | Lines (line, subsequent) ->
+        let spans = renderLine line :: (List.map renderSubsequentLine subsequent)
+
+        MarkdownParagraph.Paragraph spans
 
 let private render (body : BodyNode) : Markdown =
     match body with
