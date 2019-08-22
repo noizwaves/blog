@@ -62,6 +62,21 @@ let rec private tokenize (s : RawMarkdownText) : Tokens =
             token :: (tokenize untokenized)
         | None, None -> failwith "no token match"
 
+// Grammar builders
+
+type private Parser<'a> = Tokens -> ('a * int) option
+
+let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : 'a list * int =
+    match parser tokens with
+    | None -> [], 0
+    | Some (a, consumed) ->
+        let more, moreConsumed =
+            tokens
+            |> List.skip consumed
+            |> matchStar parser
+
+        a :: more, consumed + moreConsumed
+
 // Parsing
 // Markdown grammar is:
 // Body               := Paragraph* T(EOF)
@@ -101,32 +116,16 @@ let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) 
         | None -> None
     | _ -> None
 
-let rec private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
-    match subsequentLineParser tokens with
-    | None -> [], 0
-    | Some (subsequentLineNode, consumed) ->
-        let more, moreConsumed =
-            tokens
-            |> List.skip consumed
-            |> matchStarSubsequentLineNodeParser
-
-        subsequentLineNode :: more, consumed + moreConsumed        
+let private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
+    matchStar subsequentLineParser tokens
 
 let private newLineParser (tokens : Tokens) : (unit * int) option =
     match tokens with
     | NewLine :: _ -> Some <| ((), 1)
     | _ -> None
 
-let rec private matchStarNewLineParser (tokens : Tokens) : unit list * int =
-    match newLineParser tokens with
-    | None -> [], 0
-    | Some (node, consumed) ->
-        let more, moreConsumed =
-            tokens
-            |> List.skip consumed
-            |> matchStarNewLineParser
-
-        node :: more, consumed + moreConsumed
+let private matchStarNewLineParser (tokens : Tokens) : unit list * int =
+    matchStar newLineParser tokens
 
 let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
     match lineParser tokens with
@@ -148,16 +147,8 @@ let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option
         (paragraph, totalConsumed + newLinesConsumed) |> Some
     | None -> None
 
-let rec private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode list * int =
-    match paragraphNodeParser tokens with
-    | None -> [], 0
-    | Some (paragraphNode, consumed) ->
-        let more, moreConsumed =
-            tokens
-            |> List.skip consumed
-            |> matchStarParagraphNodeParser
-        
-        paragraphNode :: more, consumed + moreConsumed
+let private matchStarParagraphNodeParser (tokens : Tokens) : ParagraphNode list * int =
+    matchStar paragraphNodeParser tokens
 
 let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
     let paragraphs, consumed = matchStarParagraphNodeParser tokens
