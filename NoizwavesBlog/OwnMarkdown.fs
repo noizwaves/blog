@@ -93,6 +93,11 @@ let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : 'a list * in
 
         a :: more, consumed + moreConsumed
 
+let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) option =
+    match matchStar parser tokens with
+    | [], _ -> None
+    | nodes, consumed -> Some (nodes, consumed)
+
 // Parsing
 // Markdown grammar is:
 // Body               := Paragraph* T(EOF)
@@ -130,20 +135,20 @@ let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
     | _, Some (textNode, consumed) -> Some (Text textNode, consumed)
     | None, None -> None
 
-let private matchStarSentenceParser (tokens : Tokens) : SentenceNode list * int =
-    matchStar sentenceParser tokens
+let private matchPlusSentenceParser (tokens : Tokens) : (SentenceNode list * int) option =
+    matchPlus sentenceParser tokens
 
 let private lineParser (tokens : Tokens) : (LineNode * int) option =
-    match matchStarSentenceParser tokens with
-    | [], _ -> None
-    | sentenceNodes, consumed -> Some (LineNode.Sentence sentenceNodes, consumed)
+    match matchPlusSentenceParser tokens with
+    | Some (sentenceNodes, consumed) -> Some (LineNode.Sentence sentenceNodes, consumed)
+    | None -> None
 
 let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) option =
     match tokens with
     | NewLine :: other ->
-        match matchStarSentenceParser other with
-        | [], _ -> None
-        | sentenceNodes, consumed -> Some (SubsequentLineNode.Sentence sentenceNodes, consumed + 1)
+        match matchPlusSentenceParser other with
+        | Some (sentenceNodes, consumed) -> Some (SubsequentLineNode.Sentence sentenceNodes, consumed + 1)
+        | None -> None
     | _ -> None
 
 let private matchStarSubsequentLineNodeParser (tokens : Tokens) : SubsequentLineNode list * int =
