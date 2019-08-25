@@ -67,3 +67,17 @@ let ``Mix of regular and emphasized text in a paragraph`` () =
     let actual : Markdown = Option.get <| ParseOwn """_Foo_ Bar
 Baz _Czar_"""
     Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Bold text in a paragraph`` () =
+    let expected : Markdown =
+        [ Paragraph [ Bolded "Foo" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """**Foo**"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Alternatively bolded text in a paragraph`` () =
+    let expected : Markdown =
+        [ Paragraph [ Bolded "Foo" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """__Foo__"""
+    Assert.Equal<Markdown> (expected, actual)

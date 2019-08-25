@@ -5,6 +5,7 @@ module NoizwavesBlog.OwnMarkdown
 type MarkdownElement
     = Span of string
     | Emphasized of string
+    | Bolded of string
 
 type MarkdownParagraph =
     Paragraph of MarkdownElement list
@@ -18,6 +19,7 @@ type private RawMarkdownText = string
 type private Token
     = Text of string
     | Underscore
+    | Asterisk
     | NewLine
     | EOF
 
@@ -25,6 +27,7 @@ let private tokenLength (t: Token) : int =
     match t with
     | Text text -> String.length text
     | Underscore -> 1
+    | Asterisk -> 1
     | NewLine -> 1
     | EOF -> 0
 
@@ -33,7 +36,7 @@ type private Tokens = Token list
 // type private Scanner = RawMarkdownText -> Token
 
 let private textScanner (s : RawMarkdownText) : Token option =
-    let stopAt = [ '\n'; '_' ]
+    let stopAt = [ '\n'; '_'; '*' ]
 
     s
     |> Seq.toList
@@ -53,6 +56,12 @@ let private underscoreScanner (s : RawMarkdownText) : Token option =
     if s.StartsWith '_' then
         Some Underscore
     else
+        None
+
+let private asteriskScanner (s : RawMarkdownText) : Token option =
+    if s.StartsWith '*' then
+        Some Asterisk
+    else
         None    
 
 let rec private tokenize (s : RawMarkdownText) : Tokens =
@@ -61,22 +70,27 @@ let rec private tokenize (s : RawMarkdownText) : Tokens =
     else    
         let newLineMatch = newLineScanner s
         let underscoreMatch = underscoreScanner s
+        let asteriskMatch = asteriskScanner s
         let textMatch = textScanner s
 
-        match (newLineMatch, underscoreMatch, textMatch) with
-        | Some token, _, _ ->
+        match (newLineMatch, underscoreMatch, asteriskMatch, textMatch) with
+        | Some token, _, _, _ ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | _, Some token, _ ->
+        | _, Some token, _, _ ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | _, _, Some token ->
+        | _, _, Some token, _ ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | None, None, None -> failwith "no token match"
+        | _, _, _, Some token ->
+            let consumed = tokenLength token
+            let untokenized = String.substring consumed s
+            token :: (tokenize untokenized)
+        | None, None, None, None -> failwith "no token match"
 
 // Grammar builders
 
@@ -104,8 +118,10 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) 
 // SubsequentLine     := T(NewLine) Sentence+
 // Line               := Sentence+
 // Sentence           := EmphasizedText
+//                     | BoldedText
 //                     | Text
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
+// BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
 // Text               := T(Text)
 
 // Known grammar issues
@@ -114,9 +130,11 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) 
 
 type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
+type private BoldedTextNode = BoldedTextValue of string
 type private SentenceNode
     = Text of TextNode
     | EmphasizedText of EmphasizedTextNode
+    | BoldedText of BoldedTextNode
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
@@ -132,11 +150,20 @@ let private emphasizedTextParser (tokens : Tokens) : (EmphasizedTextNode * int) 
     | Token.Underscore :: Token.Text s :: Token.Underscore :: _ -> (EmphasizedTextValue s, 3) |> Some
     | _ -> None
 
+let private boldedTextParser (tokens : Tokens) : (BoldedTextNode * int) option =
+    match tokens with
+    | Token.Asterisk :: Token.Asterisk :: Token.Text s :: Token.Asterisk :: Token.Asterisk :: _ ->
+        (BoldedTextValue s, 5) |> Some
+    | Token.Underscore :: Token.Underscore :: Token.Text s :: Token.Underscore :: Token.Underscore :: _ ->
+        (BoldedTextValue s, 5) |> Some
+    | _ -> None
+
 let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
-    match emphasizedTextParser tokens, textParser tokens with
-    | Some (emphasizedTextNode, consumed), _ -> Some (EmphasizedText emphasizedTextNode, consumed)
-    | _, Some (textNode, consumed) -> Some (Text textNode, consumed)
-    | None, None -> None
+    match emphasizedTextParser tokens, boldedTextParser tokens, textParser tokens with
+    | Some (emphasizedTextNode, consumed), _, _ -> Some (EmphasizedText emphasizedTextNode, consumed)
+    | _, Some (boldedTextNode, consumed), _ -> Some (BoldedText boldedTextNode, consumed)
+    | _, _, Some (textNode, consumed) -> Some (Text textNode, consumed)
+    | None, None, None -> None
 
 let private lineParser (tokens : Tokens) : (LineNode * int) option =
     match matchPlus sentenceParser tokens with
@@ -202,6 +229,7 @@ let private renderSentence (sentence : SentenceNode) : MarkdownElement =
     match sentence with
     | Text (TextValue value) -> Span value
     | EmphasizedText (EmphasizedTextValue value) -> Emphasized value
+    | BoldedText (BoldedTextValue value) -> Bolded value
 
 let private renderLine (line : LineNode) : MarkdownElement list =
     match line with
