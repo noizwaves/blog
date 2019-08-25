@@ -94,7 +94,9 @@ let rec private tokenize (s : RawMarkdownText) : Tokens =
 
 // Grammar builders
 
-type private Parser<'a> = Tokens -> ('a * int) option
+type private ParseResult<'n> = ('n * int) option
+
+type private Parser<'a> = Tokens -> ParseResult<'a>
 
 let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : 'a list * int =
     match parser tokens with
@@ -107,7 +109,7 @@ let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : 'a list * in
 
         a :: more, consumed + moreConsumed
 
-let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) option =
+let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a list> =
     match matchStar parser tokens with
     | [], _ -> None
     | nodes, consumed -> Some (nodes, consumed)
@@ -128,6 +130,8 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ('a list * int) 
 // - non-terminating paragraphs must have a T(NewLine)
 //   - * should be + for these
 
+// AST
+
 type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
 type private BoldedTextNode = BoldedTextValue of string
@@ -140,17 +144,19 @@ type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
-let private textParser (tokens : Tokens) : (TextNode * int) option =
+// Parsers
+
+let private textParser (tokens : Tokens) : ParseResult<TextNode> =
     match tokens with
     | Token.Text s :: _ -> (TextValue s, 1) |> Some
     | _ -> None
 
-let private emphasizedTextParser (tokens : Tokens) : (EmphasizedTextNode * int) option =
+let private emphasizedTextParser (tokens : Tokens) : ParseResult<EmphasizedTextNode> =
     match tokens with
     | Token.Underscore :: Token.Text s :: Token.Underscore :: _ -> (EmphasizedTextValue s, 3) |> Some
     | _ -> None
 
-let private boldedTextParser (tokens : Tokens) : (BoldedTextNode * int) option =
+let private boldedTextParser (tokens : Tokens) : ParseResult<BoldedTextNode> =
     match tokens with
     | Token.Asterisk :: Token.Asterisk :: Token.Text s :: Token.Asterisk :: Token.Asterisk :: _ ->
         (BoldedTextValue s, 5) |> Some
@@ -158,19 +164,19 @@ let private boldedTextParser (tokens : Tokens) : (BoldedTextNode * int) option =
         (BoldedTextValue s, 5) |> Some
     | _ -> None
 
-let private sentenceParser (tokens : Tokens) : (SentenceNode * int) option =
+let private sentenceParser (tokens : Tokens) : ParseResult<SentenceNode> =
     match emphasizedTextParser tokens, boldedTextParser tokens, textParser tokens with
     | Some (emphasizedTextNode, consumed), _, _ -> Some (EmphasizedText emphasizedTextNode, consumed)
     | _, Some (boldedTextNode, consumed), _ -> Some (BoldedText boldedTextNode, consumed)
     | _, _, Some (textNode, consumed) -> Some (Text textNode, consumed)
     | None, None, None -> None
 
-let private lineParser (tokens : Tokens) : (LineNode * int) option =
+let private lineParser (tokens : Tokens) : ParseResult<LineNode> =
     match matchPlus sentenceParser tokens with
     | Some (sentenceNodes, consumed) -> Some (LineNode.Sentence sentenceNodes, consumed)
     | None -> None
 
-let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) option =
+let private subsequentLineParser (tokens : Tokens) : ParseResult<SubsequentLineNode> =
     match tokens with
     | NewLine :: other ->
         match matchPlus sentenceParser other with
@@ -178,12 +184,12 @@ let private subsequentLineParser (tokens : Tokens) : (SubsequentLineNode * int) 
         | None -> None
     | _ -> None
 
-let private newLineParser (tokens : Tokens) : (unit * int) option =
+let private newLineParser (tokens : Tokens) : ParseResult<unit> =
     match tokens with
     | NewLine :: _ -> Some <| ((), 1)
     | _ -> None
 
-let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option =
+let private paragraphNodeParser (tokens : Tokens) : ParseResult<ParagraphNode> =
     match lineParser tokens with
     | Some (line, consumed) ->
         let subsequentLines, subsequentConsumed = 
@@ -203,7 +209,7 @@ let private paragraphNodeParser (tokens : Tokens) : (ParagraphNode * int) option
         (paragraph, totalConsumed + newLinesConsumed) |> Some
     | None -> None
 
-let private bodyNodeParser (tokens : Tokens) : (BodyNode * int) option =
+let private bodyNodeParser (tokens : Tokens) : ParseResult<BodyNode> =
     let paragraphs, consumed = matchStar paragraphNodeParser tokens
 
     let remaining =
