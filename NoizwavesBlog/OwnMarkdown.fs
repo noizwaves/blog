@@ -125,17 +125,27 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a l
     | [], _ -> None
     | nodes, consumed -> Some (nodes, consumed)
 
-let private firstParseWith (parser : Parser<'b>) (lifter : 'b -> 'a) : Parser<'a> =
-    fun tokens ->
-        match parser tokens with
-        | Some (result, consumed) -> Some (lifter result, consumed)
-        | None -> None
-
-let private orParseWith (next : Parser<'b>) (lifter : 'b -> 'a) (previous : Parser<'a>) : Parser<'a> =
+let private orParse (next : Parser<'a>) (previous : Parser<'a>) : Parser<'a> =
     fun tokens ->
         match previous tokens with
         | Some result -> Some result
-        | None -> firstParseWith next lifter tokens
+        | None -> next tokens
+
+let private andParse (next : Parser<'b>) (previous : Parser<'a>) : Parser<'a * 'b> =
+    fun tokens ->
+        match previous tokens with
+        | Some (prevNode, prevConsumed) ->
+            let remainingTokens = tokens |> List.skip prevConsumed
+            match next remainingTokens with
+            | Some (nextNode, nextConsumed) -> Some ((prevNode, nextNode), prevConsumed + nextConsumed)
+            | None -> None
+        | None -> None
+
+let private mapParse (lift : 'b -> 'a) (parser : Parser<'b>) : Parser<'a> =
+    fun tokens ->
+        match parser tokens with
+        | Some (node, consumed) -> Some (lift node, consumed)
+        | None -> None
 
 // Grammar is:
 // Body               := Paragraph* T(EOF)
@@ -198,28 +208,25 @@ let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
     | _ -> None
 
 let private sentenceParser : Parser<SentenceNode> =
-    firstParseWith emphasizedTextParser EmphasizedText
-    |> orParseWith boldedTextParser BoldedText
-    |> orParseWith inlineLinkParser InlineLink
-    |> orParseWith textParser Text
+    mapParse EmphasizedText emphasizedTextParser
+    |> orParse <| mapParse BoldedText boldedTextParser
+    |> orParse <| mapParse InlineLink inlineLinkParser
+    |> orParse <| mapParse Text textParser
 
 let private lineParser (tokens : Tokens) : ParseResult<LineNode> =
     match matchPlus sentenceParser tokens with
     | Some (sentenceNodes, consumed) -> Some (LineNode.Sentence sentenceNodes, consumed)
     | None -> None
 
-let private subsequentLineParser (tokens : Tokens) : ParseResult<SubsequentLineNode> =
-    match tokens with
-    | NewLine :: other ->
-        match matchPlus sentenceParser other with
-        | Some (sentenceNodes, consumed) -> Some (SubsequentLineNode.Sentence sentenceNodes, consumed + 1)
-        | None -> None
-    | _ -> None
-
 let private newLineParser (tokens : Tokens) : ParseResult<unit> =
     match tokens with
-    | NewLine :: _ -> Some <| ((), 1)
+    | NewLine :: _ -> Some ((), 1)
     | _ -> None
+
+let private subsequentLineParser : Parser<SubsequentLineNode> =
+    newLineParser
+    |> andParse (matchPlus sentenceParser)
+    |> mapParse (fun (_, r) -> SubsequentLineNode.Sentence r)
 
 let private paragraphNodeParser (tokens : Tokens) : ParseResult<ParagraphNode> =
     match lineParser tokens with
@@ -241,16 +248,15 @@ let private paragraphNodeParser (tokens : Tokens) : ParseResult<ParagraphNode> =
         (paragraph, totalConsumed + newLinesConsumed) |> Some
     | None -> None
 
-let private bodyNodeParser (tokens : Tokens) : ParseResult<BodyNode> =
-    let paragraphs, consumed = matchStar paragraphNodeParser tokens
-
-    let remaining =
-        tokens
-        |> List.skip consumed
-
-    match remaining with
-    | [ EOF ] -> (Paragraphs paragraphs, consumed + 1) |> Some
+let private eofParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | EOF :: _ -> Some ((), 1)
     | _ -> None
+
+let private bodyNodeParser : Parser<BodyNode> =
+    matchPlus paragraphNodeParser // TODO: change back to matchStar
+    |> andParse eofParser
+    |> mapParse (fun (n, _) -> Paragraphs n)
 
 let private parse (tokens : Tokens) : BodyNode option =
     match bodyNodeParser tokens with
