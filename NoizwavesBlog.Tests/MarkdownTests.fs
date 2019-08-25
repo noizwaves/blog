@@ -97,3 +97,27 @@ let ``Inline link in a paragraph`` () =
     let expected : Markdown = [ Paragraph [ InlineLink ("www.example.com", "foobar") ] ]
     let actual : Markdown = Option.get <| ParseOwn """[foobar](www.example.com)"""
     Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Inline code span using single backticks`` () =
+    let expected : Markdown = [ Paragraph [ Code "foobar" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """`foobar`"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Inline code span using double backticks`` () =
+    let expected : Markdown = [ Paragraph [ Code "baz" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``baz``"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Inline code span containing a literal backtick`` () =
+    let expected : Markdown = [ Paragraph [ Code "b`az" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``b`az``"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Inline code span containing multiple literal backticks`` () =
+    let expected : Markdown = [ Paragraph [ Code "b`a`z" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``b`a`z``"""
+    Assert.Equal<Markdown> (expected, actual)

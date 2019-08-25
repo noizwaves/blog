@@ -1,12 +1,14 @@
 module NoizwavesBlog.OwnMarkdown
 
 // public interface
+// not HTML safe
 
 type MarkdownElement
     = Span of string
     | Emphasized of string
     | Bolded of string
     | InlineLink of string * string
+    | Code of string
 
 type MarkdownParagraph =
     Paragraph of MarkdownElement list
@@ -26,6 +28,7 @@ type private Token
     | CloseBracket
     | OpenParentheses
     | CloseParentheses
+    | Backtick
     | EOF
 
 let private tokenLength (t: Token) : int =
@@ -38,6 +41,7 @@ let private tokenLength (t: Token) : int =
     | CloseBracket -> 1
     | OpenParentheses -> 1
     | CloseParentheses -> 1
+    | Backtick -> 1
     | EOF -> 0
 
 // Scanner builders
@@ -57,7 +61,7 @@ let private thenScan (next : Scanner) (previous : Scanner) : Scanner =
 // Scanners
 
 let private textScanner (s : RawMarkdownText) : ScanResult =
-    let stopAt = [ '\n'; '_'; '*'; '['; ']'; '('; ')' ]
+    let stopAt = [ '\n'; '_'; '*'; '['; ']'; '('; ')'; '`' ]
 
     s
     |> Seq.toList
@@ -84,12 +88,15 @@ let private parenthesesScanner : Scanner =
     charScanner '(' OpenParentheses
     |> thenScan <| charScanner ')' CloseParentheses
 
+let private backtickScanner : Scanner = charScanner '`' Backtick
+
 let private tokenScanner : Scanner =
     newLineScanner
     |> thenScan underscoreScanner
     |> thenScan asteriskScanner
     |> thenScan bracketScanner
     |> thenScan parenthesesScanner
+    |> thenScan backtickScanner
     |> thenScan textScanner
 
 let rec private tokenize (s : RawMarkdownText) : Tokens =
@@ -156,6 +163,11 @@ let private mapParse (lift : 'b -> 'a) (parser : Parser<'b>) : Parser<'a> =
 //                     | BoldedText
 //                     | Text
 //                     | InlineLink
+//                     | Code
+// Code               := T(Backtick) SimpleCode T(Backtick)
+//                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
+// SimpleCode         := T(Text)
+// ComplexCode        := T(Text) (T(Backtick) T(Text))*
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -171,11 +183,20 @@ type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
 type private BoldedTextNode = BoldedTextValue of string
 type private InlineLinkNode = InlineLinkValue of string * string
+
+type private ComplexCodeNode
+    = ComplexCodeTextValue of TextNode
+    | ComplexCodeBacktickValue
+type private CodeNode
+    = SimpleCodeValue of string
+    | ComplexCodeValue of ComplexCodeNode list
+
 type private SentenceNode
     = Text of TextNode
     | EmphasizedText of EmphasizedTextNode
     | BoldedText of BoldedTextNode
     | InlineLink of InlineLinkNode
+    | Code of CodeNode
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
@@ -207,10 +228,46 @@ let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
         (InlineLinkValue (url, name), 6) |> Some
     | _ -> None
 
+let private simpleCodeParser (tokens : Tokens) : ParseResult<CodeNode> =
+    match tokens with
+    | Token.Backtick :: Token.Text code :: Token.Backtick :: _->
+        (SimpleCodeValue code, 3) |> Some
+    | _ -> None
+
+let private backtickParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | Backtick :: _ -> Some ((), 1)
+    | _ -> None
+
+let private complexCodeParser : Parser<CodeNode> =
+    let chunk =
+        backtickParser|> mapParse (fun (_) -> ComplexCodeBacktickValue)
+        |> andParse (textParser |> mapParse ComplexCodeTextValue)
+        |> mapParse (fun (f, s) -> [ f; s ])
+
+    let doubleBacktick = backtickParser |> andParse backtickParser
+
+    let content =
+        textParser |> mapParse ComplexCodeTextValue
+        |> andParse (matchStar chunk)
+        |> mapParse (fun (first, chunks) -> first :: List.concat chunks )
+        |> mapParse ComplexCodeValue
+
+    doubleBacktick
+    |> andParse content
+    |> mapParse (fun (_, s) -> s)
+    |> andParse doubleBacktick
+    |> mapParse (fun (f, _) -> f)
+
+let private codeParser : Parser<CodeNode> =
+    simpleCodeParser
+    |> orParse complexCodeParser
+
 let private sentenceParser : Parser<SentenceNode> =
     mapParse EmphasizedText emphasizedTextParser
     |> orParse <| mapParse BoldedText boldedTextParser
     |> orParse <| mapParse InlineLink inlineLinkParser
+    |> orParse <| mapParse Code codeParser
     |> orParse <| mapParse Text textParser
 
 let private lineParser : Parser<LineNode> =
@@ -255,12 +312,27 @@ let private parse (tokens : Tokens) : BodyNode option =
 
 // AST to public types
 
+let private renderComplexCode (node : ComplexCodeNode) : string =
+    match node with
+    | ComplexCodeTextValue (TextValue text) -> text
+    | ComplexCodeBacktickValue -> "`"
+
+let private renderCode (node : CodeNode) : MarkdownElement =
+    match node with
+    | SimpleCodeValue code -> MarkdownElement.Code code
+    | ComplexCodeValue nodes ->
+        nodes
+        |> List.map renderComplexCode
+        |> String.concat ""
+        |> MarkdownElement.Code
+
 let private renderSentence (sentence : SentenceNode) : MarkdownElement =
     match sentence with
     | Text (TextValue value) -> Span value
     | EmphasizedText (EmphasizedTextValue value) -> Emphasized value
     | BoldedText (BoldedTextValue value) -> Bolded value
     | InlineLink (InlineLinkValue (url, name)) -> MarkdownElement.InlineLink (url, name)
+    | Code code -> renderCode code
 
 let private renderLine (line : LineNode) : MarkdownElement list =
     match line with
