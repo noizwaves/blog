@@ -117,7 +117,15 @@ let ``Inline code span containing a literal backtick`` () =
     Assert.Equal<Markdown> (expected, actual)
 
 [<Fact>]
-let ``Inline code span containing multiple literal backticks`` () =
+let ``Inline code span containing two literal backticks`` () =
     let expected : Markdown = [ Paragraph [ Code "b`a`z" ] ]
     let actual : Markdown = Option.get <| ParseOwn """``b`a`z``"""
+    Assert.Equal<Markdown> (expected, actual)
+
+
+[<Fact>]
+let ``Inline code span containing multiple literal backticks`` () =
+    // debug
+    let expected : Markdown = [ Paragraph [ Code "b`a`z` `q`u`x" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``b`a`z` `q`u`x``"""
     Assert.Equal<Markdown> (expected, actual)
