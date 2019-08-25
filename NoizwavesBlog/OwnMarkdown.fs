@@ -125,6 +125,18 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a l
     | [], _ -> None
     | nodes, consumed -> Some (nodes, consumed)
 
+let private firstParseWith (parser : Parser<'b>) (lifter : 'b -> 'a) : Parser<'a> =
+    fun tokens ->
+        match parser tokens with
+        | Some (result, consumed) -> Some (lifter result, consumed)
+        | None -> None
+
+let private orParseWith (next : Parser<'b>) (lifter : 'b -> 'a) (previous : Parser<'a>) : Parser<'a> =
+    fun tokens ->
+        match previous tokens with
+        | Some result -> Some result
+        | None -> firstParseWith next lifter tokens
+
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
@@ -185,13 +197,11 @@ let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
         (InlineLinkValue (url, name), 6) |> Some
     | _ -> None
 
-let private sentenceParser (tokens : Tokens) : ParseResult<SentenceNode> =
-    match emphasizedTextParser tokens, boldedTextParser tokens, inlineLinkParser tokens, textParser tokens with
-    | Some (emphasizedTextNode, consumed), _, _, _ -> Some (EmphasizedText emphasizedTextNode, consumed)
-    | _, Some (boldedTextNode, consumed), _, _ -> Some (BoldedText boldedTextNode, consumed)
-    | _, _, Some (inlineLinkNode, consumed), _ -> Some (InlineLink inlineLinkNode, consumed)
-    | _, _, _, Some (textNode, consumed) -> Some (Text textNode, consumed)
-    | None, None, None, None -> None
+let private sentenceParser : Parser<SentenceNode> =
+    firstParseWith emphasizedTextParser EmphasizedText
+    |> orParseWith boldedTextParser BoldedText
+    |> orParseWith inlineLinkParser InlineLink
+    |> orParseWith textParser Text
 
 let private lineParser (tokens : Tokens) : ParseResult<LineNode> =
     match matchPlus sentenceParser tokens with
