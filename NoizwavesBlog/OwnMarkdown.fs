@@ -6,6 +6,7 @@ type MarkdownElement
     = Span of string
     | Emphasized of string
     | Bolded of string
+    | InlineLink of string * string
 
 type MarkdownParagraph =
     Paragraph of MarkdownElement list
@@ -21,6 +22,10 @@ type private Token
     | Underscore
     | Asterisk
     | NewLine
+    | OpenBracket
+    | CloseBracket
+    | OpenParentheses
+    | CloseParentheses
     | EOF
 
 let private tokenLength (t: Token) : int =
@@ -29,14 +34,30 @@ let private tokenLength (t: Token) : int =
     | Underscore -> 1
     | Asterisk -> 1
     | NewLine -> 1
+    | OpenBracket -> 1
+    | CloseBracket -> 1
+    | OpenParentheses -> 1
+    | CloseParentheses -> 1
     | EOF -> 0
+
+// Scanner builders
 
 type private Tokens = Token list
 
-// type private Scanner = RawMarkdownText -> Token
+type private ScanResult = Token option
 
-let private textScanner (s : RawMarkdownText) : Token option =
-    let stopAt = [ '\n'; '_'; '*' ]
+type private Scanner = RawMarkdownText -> ScanResult
+
+let private thenScan (next : Scanner) (previous : Scanner) : Scanner =
+    fun s ->
+        match previous s with
+        | Some token -> Some token
+        | None -> next s
+
+// Scanners
+
+let private textScanner (s : RawMarkdownText) : ScanResult =
+    let stopAt = [ '\n'; '_'; '*'; '['; ']'; '('; ')' ]
 
     s
     |> Seq.toList
@@ -46,51 +67,41 @@ let private textScanner (s : RawMarkdownText) : Token option =
     |> Text
     |> Some
 
-let private newLineScanner (s : RawMarkdownText) : Token option =
-    if s.StartsWith '\n' then
-        Some NewLine
-    else
-        None
+let private charScanner (c : char) (t : Token) (s : RawMarkdownText) : ScanResult =
+    if s.StartsWith c then Some t else None
 
-let private underscoreScanner (s : RawMarkdownText) : Token option =
-    if s.StartsWith '_' then
-        Some Underscore
-    else
-        None
+let private newLineScanner : Scanner = charScanner '\n' NewLine
 
-let private asteriskScanner (s : RawMarkdownText) : Token option =
-    if s.StartsWith '*' then
-        Some Asterisk
-    else
-        None    
+let private underscoreScanner : Scanner = charScanner '_' Underscore
+
+let private asteriskScanner : Scanner = charScanner '*' Asterisk
+
+let private bracketScanner : Scanner =
+    charScanner '[' OpenBracket
+    |> thenScan <| charScanner ']' CloseBracket
+
+let private parenthesesScanner : Scanner =
+    charScanner '(' OpenParentheses
+    |> thenScan <| charScanner ')' CloseParentheses
+
+let private tokenScanner : Scanner =
+    newLineScanner
+    |> thenScan underscoreScanner
+    |> thenScan asteriskScanner
+    |> thenScan bracketScanner
+    |> thenScan parenthesesScanner
+    |> thenScan textScanner
 
 let rec private tokenize (s : RawMarkdownText) : Tokens =
     if s = "" then
         [ EOF ]
     else    
-        let newLineMatch = newLineScanner s
-        let underscoreMatch = underscoreScanner s
-        let asteriskMatch = asteriskScanner s
-        let textMatch = textScanner s
-
-        match (newLineMatch, underscoreMatch, asteriskMatch, textMatch) with
-        | Some token, _, _, _ ->
+        match tokenScanner s with
+        | Some token ->
             let consumed = tokenLength token
             let untokenized = String.substring consumed s
             token :: (tokenize untokenized)
-        | _, Some token, _, _ ->
-            let consumed = tokenLength token
-            let untokenized = String.substring consumed s
-            token :: (tokenize untokenized)
-        | _, _, Some token, _ ->
-            let consumed = tokenLength token
-            let untokenized = String.substring consumed s
-            token :: (tokenize untokenized)
-        | _, _, _, Some token ->
-            let consumed = tokenLength token
-            let untokenized = String.substring consumed s
-            token :: (tokenize untokenized)
-        | None, None, None, None -> failwith "no token match"
+        | None -> failwith "no token match"
 
 // Grammar builders
 
@@ -122,6 +133,8 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a l
 // Sentence           := EmphasizedText
 //                     | BoldedText
 //                     | Text
+//                     | InlineLink
+// InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
 // Text               := T(Text)
@@ -135,10 +148,12 @@ let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a l
 type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
 type private BoldedTextNode = BoldedTextValue of string
+type private InlineLinkNode = InlineLinkValue of string * string
 type private SentenceNode
     = Text of TextNode
     | EmphasizedText of EmphasizedTextNode
     | BoldedText of BoldedTextNode
+    | InlineLink of InlineLinkNode
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
@@ -164,12 +179,19 @@ let private boldedTextParser (tokens : Tokens) : ParseResult<BoldedTextNode> =
         (BoldedTextValue s, 5) |> Some
     | _ -> None
 
+let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
+    match tokens with
+    | Token.OpenBracket :: Token.Text name :: Token.CloseBracket :: Token.OpenParentheses :: Token.Text url :: Token.CloseParentheses :: _ ->
+        (InlineLinkValue (url, name), 6) |> Some
+    | _ -> None
+
 let private sentenceParser (tokens : Tokens) : ParseResult<SentenceNode> =
-    match emphasizedTextParser tokens, boldedTextParser tokens, textParser tokens with
-    | Some (emphasizedTextNode, consumed), _, _ -> Some (EmphasizedText emphasizedTextNode, consumed)
-    | _, Some (boldedTextNode, consumed), _ -> Some (BoldedText boldedTextNode, consumed)
-    | _, _, Some (textNode, consumed) -> Some (Text textNode, consumed)
-    | None, None, None -> None
+    match emphasizedTextParser tokens, boldedTextParser tokens, inlineLinkParser tokens, textParser tokens with
+    | Some (emphasizedTextNode, consumed), _, _, _ -> Some (EmphasizedText emphasizedTextNode, consumed)
+    | _, Some (boldedTextNode, consumed), _, _ -> Some (BoldedText boldedTextNode, consumed)
+    | _, _, Some (inlineLinkNode, consumed), _ -> Some (InlineLink inlineLinkNode, consumed)
+    | _, _, _, Some (textNode, consumed) -> Some (Text textNode, consumed)
+    | None, None, None, None -> None
 
 let private lineParser (tokens : Tokens) : ParseResult<LineNode> =
     match matchPlus sentenceParser tokens with
@@ -236,6 +258,7 @@ let private renderSentence (sentence : SentenceNode) : MarkdownElement =
     | Text (TextValue value) -> Span value
     | EmphasizedText (EmphasizedTextValue value) -> Emphasized value
     | BoldedText (BoldedTextValue value) -> Bolded value
+    | InlineLink (InlineLinkValue (url, name)) -> MarkdownElement.InlineLink (url, name)
 
 let private renderLine (line : LineNode) : MarkdownElement list =
     match line with

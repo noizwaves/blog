@@ -92,3 +92,9 @@ let ``Mix of regular, bolded, and emphasized text in a paragraph`` () =
 Baz _Qux_
 **Quux** Quuz _Corge_ __Grault__"""
     Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Inline link in a paragraph`` () =
+    let expected : Markdown = [ Paragraph [ InlineLink ("www.example.com", "foobar") ] ]
+    let actual : Markdown = Option.get <| ParseOwn """[foobar](www.example.com)"""
+    Assert.Equal<Markdown> (expected, actual)
