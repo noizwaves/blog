@@ -166,8 +166,8 @@ let private mapParse (lift : 'b -> 'a) (parser : Parser<'b>) : Parser<'a> =
 //                     | Code
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
+// ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
 // SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore)
-// ComplexCode        := T(Text) (T(Backtick) T(Text))*
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -184,9 +184,6 @@ type private EmphasizedTextNode = EmphasizedTextValue of string
 type private BoldedTextNode = BoldedTextValue of string
 type private InlineLinkNode = InlineLinkValue of string * string
 
-type private ComplexCodeNode
-    = ComplexCodeTextValue of TextNode
-    | ComplexCodeBacktickValue
 type private SimpleCodeNode =
     | SimpleCodeTextValue of TextNode
     | SimpleCodeOpenParentheses
@@ -195,6 +192,9 @@ type private SimpleCodeNode =
     | SimpleCodeCloseBracket
     | SimpleCodeUnderscore
     | SimpleCodeAsterisk
+type private ComplexCodeNode
+    = ComplexCodeSimpleValue of SimpleCodeNode list
+    | ComplexCodeBacktickValue
 type private CodeNode
     = SimpleCodeValue of SimpleCodeNode list
     | ComplexCodeValue of ComplexCodeNode list
@@ -288,15 +288,17 @@ let private simpleCodeValueParser : Parser<CodeNode> =
     |> mapParse (fun (node, _) -> node)
 
 let private complexCodeParser : Parser<CodeNode> =
+    let simplePlus = matchPlus simpleCodeParser |> mapParse ComplexCodeSimpleValue
+
     let chunk =
         backtickParser|> mapParse (fun (_) -> ComplexCodeBacktickValue)
-        |> andParse (textParser |> mapParse ComplexCodeTextValue)
+        |> andParse simplePlus
         |> mapParse (fun (f, s) -> [ f; s ])
 
     let doubleBacktick = backtickParser |> andParse backtickParser
 
     let content =
-        textParser |> mapParse ComplexCodeTextValue
+        simplePlus
         |> andParse (matchStar chunk)
         |> mapParse (fun (first, chunks) -> first :: List.concat chunks )
         |> mapParse ComplexCodeValue
@@ -360,11 +362,6 @@ let private parse (tokens : Tokens) : BodyNode option =
 
 // AST to public types
 
-let private renderComplexCode (node : ComplexCodeNode) : string =
-    match node with
-    | ComplexCodeTextValue (TextValue text) -> text
-    | ComplexCodeBacktickValue -> "`"
-
 let private renderSimpleCode (node : SimpleCodeNode) : string =
     match node with
     | SimpleCodeTextValue (TextValue code) -> code
@@ -374,6 +371,14 @@ let private renderSimpleCode (node : SimpleCodeNode) : string =
     | SimpleCodeCloseBracket -> "]"
     | SimpleCodeUnderscore -> "_"
     | SimpleCodeAsterisk -> "*"
+
+let private renderComplexCode (node : ComplexCodeNode) : string =
+    match node with
+    | ComplexCodeSimpleValue nodes ->
+        nodes
+        |> List.map renderSimpleCode
+        |> String.concat ""
+    | ComplexCodeBacktickValue -> "`"
 
 let private renderCode (node : CodeNode) : MarkdownElement =
     match node with

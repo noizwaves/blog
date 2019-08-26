@@ -139,3 +139,15 @@ let ``Inline code span containing a syntactically valid link`` () =
     let expected : Markdown = [ Paragraph [ Code "[not a link](www.example.com)" ]]
     let actual : Markdown = Option.get <| ParseOwn """`[not a link](www.example.com)`"""
     Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Double backticked inline code span contianing multiple token characters`` () =
+    let expected : Markdown = [ Paragraph [ Code "([_*])" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``([_*])``"""
+    Assert.Equal<Markdown> (expected, actual)
+
+[<Fact>]
+let ``Double backticked inline code span contianing multiple token characters and escaped backticks`` () =
+    let expected : Markdown = [ Paragraph [ Code "([_`*`])" ] ]
+    let actual : Markdown = Option.get <| ParseOwn """``([_`*`])``"""
+    Assert.Equal<Markdown> (expected, actual)
