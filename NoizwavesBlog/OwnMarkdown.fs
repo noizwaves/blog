@@ -164,9 +164,9 @@ let private mapParse (lift : 'b -> 'a) (parser : Parser<'b>) : Parser<'a> =
 //                     | Text
 //                     | InlineLink
 //                     | Code
-// Code               := T(Backtick) SimpleCode T(Backtick)
+// Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
-// SimpleCode         := T(Text)
+// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore)
 // ComplexCode        := T(Text) (T(Backtick) T(Text))*
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
@@ -187,8 +187,16 @@ type private InlineLinkNode = InlineLinkValue of string * string
 type private ComplexCodeNode
     = ComplexCodeTextValue of TextNode
     | ComplexCodeBacktickValue
+type private SimpleCodeNode =
+    | SimpleCodeTextValue of TextNode
+    | SimpleCodeOpenParentheses
+    | SimpleCodeCloseParentheses
+    | SimpleCodeOpenBracket
+    | SimpleCodeCloseBracket
+    | SimpleCodeUnderscore
+    | SimpleCodeAsterisk
 type private CodeNode
-    = SimpleCodeValue of string
+    = SimpleCodeValue of SimpleCodeNode list
     | ComplexCodeValue of ComplexCodeNode list
 
 type private SentenceNode
@@ -228,16 +236,56 @@ let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
         (InlineLinkValue (url, name), 6) |> Some
     | _ -> None
 
-let private simpleCodeParser (tokens : Tokens) : ParseResult<CodeNode> =
-    match tokens with
-    | Token.Backtick :: Token.Text code :: Token.Backtick :: _->
-        (SimpleCodeValue code, 3) |> Some
-    | _ -> None
-
 let private backtickParser (tokens : Tokens) : ParseResult<unit> =
     match tokens with
     | Backtick :: _ -> Some ((), 1)
     | _ -> None
+
+let private openParenthesesParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | OpenParentheses :: _ -> Some ((), 1)
+    | _ -> None
+
+let private closeParenthesesParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | CloseParentheses :: _ -> Some ((), 1)
+    | _ -> None
+
+let private openBracketParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | OpenBracket :: _ -> Some ((), 1)
+    | _ -> None
+
+let private closeBracketParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | CloseBracket :: _ -> Some ((), 1)
+    | _ -> None
+
+let private underscoreParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | Underscore :: _ -> Some ((), 1)
+    | _ -> None
+
+let private asteriskParser (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | Asterisk :: _ -> Some ((), 1)
+    | _ -> None
+
+let private simpleCodeParser : Parser<SimpleCodeNode> =
+    textParser |> mapParse SimpleCodeTextValue
+    |> orParse (mapParse (fun (_) -> SimpleCodeOpenParentheses) openParenthesesParser)
+    |> orParse (mapParse (fun (_) -> SimpleCodeCloseParentheses) closeParenthesesParser)
+    |> orParse (mapParse (fun (_) -> SimpleCodeOpenBracket) openBracketParser)
+    |> orParse (mapParse (fun (_) -> SimpleCodeCloseBracket) closeBracketParser)
+    |> orParse (mapParse (fun (_) -> SimpleCodeUnderscore) underscoreParser)
+    |> orParse (mapParse (fun (_) -> SimpleCodeAsterisk) asteriskParser)
+
+let private simpleCodeValueParser : Parser<CodeNode> =
+    backtickParser
+    |> andParse (matchPlus simpleCodeParser)
+    |> mapParse (fun (_, nodes) -> SimpleCodeValue nodes)
+    |> andParse backtickParser
+    |> mapParse (fun (node, _) -> node)
 
 let private complexCodeParser : Parser<CodeNode> =
     let chunk =
@@ -260,7 +308,7 @@ let private complexCodeParser : Parser<CodeNode> =
     |> mapParse (fun (f, _) -> f)
 
 let private codeParser : Parser<CodeNode> =
-    simpleCodeParser
+    simpleCodeValueParser
     |> orParse complexCodeParser
 
 let private sentenceParser : Parser<SentenceNode> =
@@ -317,9 +365,23 @@ let private renderComplexCode (node : ComplexCodeNode) : string =
     | ComplexCodeTextValue (TextValue text) -> text
     | ComplexCodeBacktickValue -> "`"
 
+let private renderSimpleCode (node : SimpleCodeNode) : string =
+    match node with
+    | SimpleCodeTextValue (TextValue code) -> code
+    | SimpleCodeOpenParentheses -> "("
+    | SimpleCodeCloseParentheses -> ")"
+    | SimpleCodeOpenBracket -> "["
+    | SimpleCodeCloseBracket -> "]"
+    | SimpleCodeUnderscore -> "_"
+    | SimpleCodeAsterisk -> "*"
+
 let private renderCode (node : CodeNode) : MarkdownElement =
     match node with
-    | SimpleCodeValue code -> MarkdownElement.Code code
+    | SimpleCodeValue nodes ->
+        nodes
+        |> List.map renderSimpleCode
+        |> String.concat ""
+        |> MarkdownElement.Code
     | ComplexCodeValue nodes ->
         nodes
         |> List.map renderComplexCode
