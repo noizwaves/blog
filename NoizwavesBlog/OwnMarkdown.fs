@@ -214,10 +214,7 @@ type private BodyNode = Paragraphs of ParagraphNode list
 
 let private singleTokenParser (target : Token) (tokens : Tokens) : ParseResult<unit> =
     match tokens with
-    | t :: _ ->
-        if t = target then
-            Some ((), 1)
-        else None
+    | t :: _ when t = target -> Some ((), 1)
     | _ -> None
 
 let private backtickParser : Parser<unit> = singleTokenParser Backtick
