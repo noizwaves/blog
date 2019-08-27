@@ -212,6 +212,32 @@ type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
 
+let private singleTokenParser (target : Token) (tokens : Tokens) : ParseResult<unit> =
+    match tokens with
+    | t :: _ ->
+        if t = target then
+            Some ((), 1)
+        else None
+    | _ -> None
+
+let private backtickParser : Parser<unit> = singleTokenParser Backtick
+
+let private openParenthesesParser : Parser<unit> = singleTokenParser OpenParentheses
+
+let private closeParenthesesParser : Parser<unit> = singleTokenParser CloseParentheses
+
+let private openBracketParser : Parser<unit> = singleTokenParser OpenBracket
+
+let private closeBracketParser : Parser<unit> = singleTokenParser CloseBracket
+
+let private underscoreParser : Parser<unit> = singleTokenParser Underscore
+
+let private asteriskParser : Parser<unit> = singleTokenParser Asterisk
+
+let private newLineParser : Parser<unit> = singleTokenParser NewLine
+
+let private eofParser : Parser<unit> = singleTokenParser EOF
+
 let private textParser (tokens : Tokens) : ParseResult<TextNode> =
     match tokens with
     | Token.Text s :: _ -> (TextValue s, 1) |> Some
@@ -234,41 +260,6 @@ let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
     match tokens with
     | Token.OpenBracket :: Token.Text name :: Token.CloseBracket :: Token.OpenParentheses :: Token.Text url :: Token.CloseParentheses :: _ ->
         (InlineLinkValue (url, name), 6) |> Some
-    | _ -> None
-
-let private backtickParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | Backtick :: _ -> Some ((), 1)
-    | _ -> None
-
-let private openParenthesesParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | OpenParentheses :: _ -> Some ((), 1)
-    | _ -> None
-
-let private closeParenthesesParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | CloseParentheses :: _ -> Some ((), 1)
-    | _ -> None
-
-let private openBracketParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | OpenBracket :: _ -> Some ((), 1)
-    | _ -> None
-
-let private closeBracketParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | CloseBracket :: _ -> Some ((), 1)
-    | _ -> None
-
-let private underscoreParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | Underscore :: _ -> Some ((), 1)
-    | _ -> None
-
-let private asteriskParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | Asterisk :: _ -> Some ((), 1)
     | _ -> None
 
 let private simpleCodeParser : Parser<SimpleCodeNode> =
@@ -324,11 +315,6 @@ let private lineParser : Parser<LineNode> =
     matchPlus sentenceParser
     |> mapParse LineNode.Sentence
 
-let private newLineParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | NewLine :: _ -> Some ((), 1)
-    | _ -> None
-
 let private subsequentLineParser : Parser<SubsequentLineNode> =
     newLineParser
     |> andParse (matchPlus sentenceParser)
@@ -340,11 +326,6 @@ let private paragraphNodeParser : Parser<ParagraphNode> =
     |> mapParse ParagraphNode.Lines
     |> andParse (matchStar newLineParser)
     |> mapParse (fun (r, _) -> r)
-
-let private eofParser (tokens : Tokens) : ParseResult<unit> =
-    match tokens with
-    | EOF :: _ -> Some ((), 1)
-    | _ -> None
 
 let private bodyNodeParser : Parser<BodyNode> =
     matchStar paragraphNodeParser
