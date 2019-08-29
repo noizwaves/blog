@@ -173,7 +173,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
-//                     | T(HashSpace) Text
+//                     | T(HashSpace) Text T(NewLine)*
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
 // SentenceStart      := EmphasizedText
@@ -372,6 +372,8 @@ let private paragraphHeading1Parser: Parser<ParagraphNode> =
     hashSpaceParser
     |> andParse textParser
     |> keepSecondParse
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
     |> mapParse ParagraphNode.Heading1
 
 let private paragraphNodeParser: Parser<ParagraphNode> =
