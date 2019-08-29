@@ -154,6 +154,12 @@ let private mapParse (lift: 'b -> 'a) (parser: Parser<'b>): Parser<'a> =
         | Some(node, consumed) -> Some(lift node, consumed)
         | None -> None
 
+let private keepFirstParse (parser: Parser<'a * 'b>): Parser<'a> =
+    mapParse (fun (a, _) -> a) parser
+
+let private keepSecondParse (parser: Parser<'a * 'b>): Parser<'b> =
+    mapParse (fun (_, b) -> b) parser
+
 let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
     mapParse (fun _ -> value) parser
 
@@ -274,9 +280,10 @@ let private simpleCodeParser: Parser<SimpleCodeNode> =
 let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
     |> andParse (matchPlus simpleCodeParser)
-    |> mapParse (fun (_, nodes) -> SimpleCodeValue nodes)
+    |> keepSecondParse
+    |> mapParse SimpleCodeValue
     |> andParse backtickParser
-    |> mapParse (fun (node, _) -> node)
+    |> keepFirstParse
 
 let private complexCodeParser: Parser<CodeNode> =
     let simplePlus = matchPlus simpleCodeParser |> mapParse ComplexCodeSimpleValue
@@ -296,9 +303,9 @@ let private complexCodeParser: Parser<CodeNode> =
 
     doubleBacktick
     |> andParse content
-    |> mapParse (fun (_, s) -> s)
+    |> keepSecondParse
     |> andParse doubleBacktick
-    |> mapParse (fun (f, _) -> f)
+    |> keepFirstParse
 
 let private codeParser: Parser<CodeNode> =
     simpleCodeValueParser
@@ -318,19 +325,21 @@ let private lineParser: Parser<LineNode> =
 let private subsequentLineParser: Parser<SubsequentLineNode> =
     newLineParser
     |> andParse (matchPlus sentenceParser)
-    |> mapParse (fun (_, r) -> SubsequentLineNode.Sentence r)
+    |> keepSecondParse
+    |> mapParse SubsequentLineNode.Sentence
 
 let private paragraphNodeParser: Parser<ParagraphNode> =
     lineParser
     |> andParse (matchStar subsequentLineParser)
     |> mapParse ParagraphNode.Lines
     |> andParse (matchStar newLineParser)
-    |> mapParse (fun (r, _) -> r)
+    |> keepFirstParse
 
 let private bodyNodeParser: Parser<BodyNode> =
     matchStar paragraphNodeParser
     |> andParse eofParser
-    |> mapParse (fun (n, _) -> Paragraphs n)
+    |> keepFirstParse
+    |> mapParse Paragraphs
 
 let private parse (tokens: Tokens): BodyNode option =
     match bodyNodeParser tokens with
