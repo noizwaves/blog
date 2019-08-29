@@ -43,7 +43,7 @@ Bar"""
 let ``Multiple paragraphs``() =
     let expected: Markdown =
         [ Paragraph [ Span "Foo" ]
-       ; Paragraph [ Span "Bar"; Span "Baz" ]
+      ; Paragraph [ Span "Bar"; Span "Baz" ]
         ]
     let actual: Markdown = Option.get <| ParseOwn """Foo
 
@@ -77,14 +77,14 @@ let ``Mix of regular, bolded, and emphasized text in a paragraph``() =
     let expected: Markdown =
         [ Paragraph
             [ Emphasized "Foo"
-           ; Span " Bar"
-           ; Span "Baz "
-           ; Emphasized "Qux"
-           ; Bolded "Quux"
-           ; Span " Quuz "
-           ; Emphasized "Corge"
-           ; Span " "
-           ; Bolded "Grault"
+          ; Span " Bar"
+          ; Span "Baz "
+          ; Emphasized "Qux"
+          ; Bolded "Quux"
+          ; Span " Quuz "
+          ; Emphasized "Corge"
+          ; Span " "
+          ; Bolded "Grault"
             ]
         ]
     let actual: Markdown = Option.get <| ParseOwn """_Foo_ Bar
@@ -130,8 +130,8 @@ let ``Inline code span containing multiple literal backticks``() =
 
 [<Fact>]
 let ``Inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*])" ] ]
-    let actual: Markdown = Option.get <| ParseOwn """`([_*])`"""
+    let expected: Markdown = [ Paragraph [ Code "([_*])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """`([_*])# `"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
@@ -142,12 +142,38 @@ let ``Inline code span containing a syntactically valid link``() =
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*])" ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_*])``"""
+    let expected: Markdown = [ Paragraph [ Code "([_*])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_*])# ``"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters and escaped backticks``() =
-    let expected: Markdown = [ Paragraph [ Code "([_`*`])" ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_`*`])``"""
+    let expected: Markdown = [ Paragraph [ Code "([_`*`])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_`*`])# ``"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 1``() =
+    let expected: Markdown = [ Heading1 "Foo" ]
+    let actual: Markdown = Option.get <| ParseOwn """# Foo"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Regular paragraph containing heading 1-like characters``() =
+    let expected: Markdown = [ Paragraph [ Span "foo # Bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """foo # Bar"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Regular paragraph immediately followed by heading 1``() =
+    let expected: Markdown = [ Paragraph [ Span "foo" ]; Heading1 "baz" ]
+    let actual: Markdown = Option.get <| ParseOwn """foo
+# baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Regular paragraph with subsequent sentence containing heading 1-like characters``() =
+    let expected: Markdown = [ Paragraph [ Span "foo"; Span "bar # baz" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """foo
+bar # baz"""
     Assert.Equal<Markdown>(expected, actual)

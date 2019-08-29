@@ -11,7 +11,8 @@ type MarkdownElement =
     | Code of string
 
 type MarkdownParagraph =
-    Paragraph of MarkdownElement list
+    | Paragraph of MarkdownElement list
+    | Heading1 of string
 
 type Markdown = MarkdownParagraph list
 
@@ -29,6 +30,7 @@ type private Token =
     | OpenParentheses
     | CloseParentheses
     | Backtick
+    | HashSpace
     | EOF
 
 let private tokenLength (t: Token): int =
@@ -42,6 +44,7 @@ let private tokenLength (t: Token): int =
     | OpenParentheses -> 1
     | CloseParentheses -> 1
     | Backtick -> 1
+    | HashSpace -> 2
     | EOF -> 0
 
 // Scanner builders
@@ -90,6 +93,9 @@ let private parenthesesScanner: Scanner =
 
 let private backtickScanner: Scanner = charScanner '`' Backtick
 
+let private hashSpaceScanner (text: RawMarkdownText): ScanResult =
+    if text.StartsWith "# " then Some HashSpace else None
+
 let private tokenScanner: Scanner =
     newLineScanner
     |> thenScan underscoreScanner
@@ -97,6 +103,7 @@ let private tokenScanner: Scanner =
     |> thenScan bracketScanner
     |> thenScan parenthesesScanner
     |> thenScan backtickScanner
+    |> thenScan hashSpaceScanner
     |> thenScan textScanner
 
 let rec private tokenize (s: RawMarkdownText): Tokens =
@@ -166,17 +173,24 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
-// SubsequentLine     := T(NewLine) Sentence+
-// Line               := Sentence+
+//                     | T(HashSpace) Text
+// SubsequentLine     := T(NewLine) SentenceStart Sentence*
+// Line               := SentenceStart Sentence*
+// SentenceStart      := EmphasizedText
+//                     | BoldedText
+//                     | Text
+//                     | InlineLink
+//                     | Code
 // Sentence           := EmphasizedText
 //                     | BoldedText
 //                     | Text
 //                     | InlineLink
 //                     | Code
+//                     | T(HashSpace)
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
 // ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
-// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore)
+// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(HashSpace)
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -201,6 +215,7 @@ type private SimpleCodeNode =
     | SimpleCodeCloseBracket
     | SimpleCodeUnderscore
     | SimpleCodeAsterisk
+    | SimpleCodeHashSpace
 type private ComplexCodeNode =
     | ComplexCodeSimpleValue of SimpleCodeNode list
     | ComplexCodeBacktickValue
@@ -214,9 +229,12 @@ type private SentenceNode =
     | BoldedText of BoldedTextNode
     | InlineLink of InlineLinkNode
     | Code of CodeNode
+    | HashSpace
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
-type private ParagraphNode = Lines of LineNode * SubsequentLineNode list
+type private ParagraphNode =
+    | Lines of LineNode * SubsequentLineNode list
+    | Heading1 of TextNode
 type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
@@ -241,6 +259,8 @@ let private underscoreParser: Parser<unit> = singleTokenParser Underscore
 let private asteriskParser: Parser<unit> = singleTokenParser Asterisk
 
 let private newLineParser: Parser<unit> = singleTokenParser NewLine
+
+let private hashSpaceParser: Parser<unit> = singleTokenParser Token.HashSpace
 
 let private eofParser: Parser<unit> = singleTokenParser EOF
 
@@ -276,6 +296,7 @@ let private simpleCodeParser: Parser<SimpleCodeNode> =
     |> orParse (map0Parse SimpleCodeCloseBracket closeBracketParser)
     |> orParse (map0Parse SimpleCodeUnderscore underscoreParser)
     |> orParse (map0Parse SimpleCodeAsterisk asteriskParser)
+    |> orParse (map0Parse SimpleCodeHashSpace hashSpaceParser)
 
 let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
@@ -316,24 +337,46 @@ let private sentenceParser: Parser<SentenceNode> =
     |> orParse <| mapParse BoldedText boldedTextParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
+    |> orParse <| map0Parse HashSpace hashSpaceParser
+    |> orParse <| mapParse Text textParser
+
+let private sentenceStartParser: Parser<SentenceNode> =
+    mapParse EmphasizedText emphasizedTextParser
+    |> orParse <| mapParse BoldedText boldedTextParser
+    |> orParse <| mapParse InlineLink inlineLinkParser
+    |> orParse <| mapParse Code codeParser
     |> orParse <| mapParse Text textParser
 
 let private lineParser: Parser<LineNode> =
-    matchPlus sentenceParser
+    sentenceStartParser
+    |> andParse (matchStar sentenceParser)
+    |> mapParse (fun (p, pps) -> p :: pps)
     |> mapParse LineNode.Sentence
 
 let private subsequentLineParser: Parser<SubsequentLineNode> =
     newLineParser
-    |> andParse (matchPlus sentenceParser)
+    |> andParse sentenceStartParser
     |> keepSecondParse
+    |> andParse (matchStar sentenceParser)
+    |> mapParse (fun (p, pps) -> p :: pps)
     |> mapParse SubsequentLineNode.Sentence
 
-let private paragraphNodeParser: Parser<ParagraphNode> =
+let private paragraphLinesParser: Parser<ParagraphNode> =
     lineParser
     |> andParse (matchStar subsequentLineParser)
     |> mapParse ParagraphNode.Lines
     |> andParse (matchStar newLineParser)
     |> keepFirstParse
+
+let private paragraphHeading1Parser: Parser<ParagraphNode> =
+    hashSpaceParser
+    |> andParse textParser
+    |> keepSecondParse
+    |> mapParse ParagraphNode.Heading1
+
+let private paragraphNodeParser: Parser<ParagraphNode> =
+    paragraphLinesParser
+    |> orParse paragraphHeading1Parser
 
 let private bodyNodeParser: Parser<BodyNode> =
     matchStar paragraphNodeParser
@@ -361,6 +404,7 @@ let private renderSimpleCode (node: SimpleCodeNode): string =
     | SimpleCodeCloseBracket -> "]"
     | SimpleCodeUnderscore -> "_"
     | SimpleCodeAsterisk -> "*"
+    | SimpleCodeHashSpace -> "# "
 
 let private renderComplexCode (node: ComplexCodeNode): string =
     match node with
@@ -390,6 +434,7 @@ let private renderSentence (sentence: SentenceNode): MarkdownElement =
     | BoldedText(BoldedTextValue value) -> Bolded value
     | InlineLink(InlineLinkValue(url, name)) -> MarkdownElement.InlineLink(url, name)
     | Code code -> renderCode code
+    | HashSpace -> Span "# "
 
 let private renderLine (line: LineNode): MarkdownElement list =
     match line with
@@ -411,6 +456,7 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
+    | Heading1(TextValue t) -> MarkdownParagraph.Heading1 t
 
 let private render (body: BodyNode): Markdown =
     match body with
