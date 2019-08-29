@@ -154,6 +154,9 @@ let private mapParse (lift: 'b -> 'a) (parser: Parser<'b>): Parser<'a> =
         | Some(node, consumed) -> Some(lift node, consumed)
         | None -> None
 
+let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
+    mapParse (fun _ -> value) parser
+
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
@@ -261,12 +264,12 @@ let private inlineLinkParser (tokens: Tokens): ParseResult<InlineLinkNode> =
 
 let private simpleCodeParser: Parser<SimpleCodeNode> =
     textParser |> mapParse SimpleCodeTextValue
-    |> orParse (mapParse (fun _ -> SimpleCodeOpenParentheses) openParenthesesParser)
-    |> orParse (mapParse (fun _ -> SimpleCodeCloseParentheses) closeParenthesesParser)
-    |> orParse (mapParse (fun _ -> SimpleCodeOpenBracket) openBracketParser)
-    |> orParse (mapParse (fun _ -> SimpleCodeCloseBracket) closeBracketParser)
-    |> orParse (mapParse (fun _ -> SimpleCodeUnderscore) underscoreParser)
-    |> orParse (mapParse (fun _ -> SimpleCodeAsterisk) asteriskParser)
+    |> orParse (map0Parse SimpleCodeOpenParentheses openParenthesesParser)
+    |> orParse (map0Parse SimpleCodeCloseParentheses closeParenthesesParser)
+    |> orParse (map0Parse SimpleCodeOpenBracket openBracketParser)
+    |> orParse (map0Parse SimpleCodeCloseBracket closeBracketParser)
+    |> orParse (map0Parse SimpleCodeUnderscore underscoreParser)
+    |> orParse (map0Parse SimpleCodeAsterisk asteriskParser)
 
 let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
@@ -279,7 +282,7 @@ let private complexCodeParser: Parser<CodeNode> =
     let simplePlus = matchPlus simpleCodeParser |> mapParse ComplexCodeSimpleValue
 
     let chunk =
-        backtickParser |> mapParse (fun _ -> ComplexCodeBacktickValue)
+        backtickParser |> map0Parse ComplexCodeBacktickValue
         |> andParse simplePlus
         |> mapParse (fun (f, s) -> [ f; s ])
 
