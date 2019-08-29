@@ -3,8 +3,8 @@ module NoizwavesBlog.OwnMarkdown
 // public interface
 // not HTML safe
 
-type MarkdownElement
-    = Span of string
+type MarkdownElement =
+    | Span of string
     | Emphasized of string
     | Bolded of string
     | InlineLink of string * string
@@ -19,8 +19,8 @@ type Markdown = MarkdownParagraph list
 
 type private RawMarkdownText = string
 
-type private Token
-    = Text of string
+type private Token =
+    | Text of string
     | Underscore
     | Asterisk
     | NewLine
@@ -31,7 +31,7 @@ type private Token
     | Backtick
     | EOF
 
-let private tokenLength (t: Token) : int =
+let private tokenLength (t: Token): int =
     match t with
     | Text text -> String.length text
     | Underscore -> 1
@@ -52,7 +52,7 @@ type private ScanResult = Token option
 
 type private Scanner = RawMarkdownText -> ScanResult
 
-let private thenScan (next : Scanner) (previous : Scanner) : Scanner =
+let private thenScan (next: Scanner) (previous: Scanner): Scanner =
     fun s ->
         match previous s with
         | Some token -> Some token
@@ -60,7 +60,7 @@ let private thenScan (next : Scanner) (previous : Scanner) : Scanner =
 
 // Scanners
 
-let private textScanner (s : RawMarkdownText) : ScanResult =
+let private textScanner (s: RawMarkdownText): ScanResult =
     let stopAt = [ '\n'; '_'; '*'; '['; ']'; '('; ')'; '`' ]
 
     s
@@ -71,26 +71,26 @@ let private textScanner (s : RawMarkdownText) : ScanResult =
     |> Text
     |> Some
 
-let private charScanner (c : char) (t : Token) (s : RawMarkdownText) : ScanResult =
+let private charScanner (c: char) (t: Token) (s: RawMarkdownText): ScanResult =
     if s.StartsWith c then Some t else None
 
-let private newLineScanner : Scanner = charScanner '\n' NewLine
+let private newLineScanner: Scanner = charScanner '\n' NewLine
 
-let private underscoreScanner : Scanner = charScanner '_' Underscore
+let private underscoreScanner: Scanner = charScanner '_' Underscore
 
-let private asteriskScanner : Scanner = charScanner '*' Asterisk
+let private asteriskScanner: Scanner = charScanner '*' Asterisk
 
-let private bracketScanner : Scanner =
+let private bracketScanner: Scanner =
     charScanner '[' OpenBracket
     |> thenScan <| charScanner ']' CloseBracket
 
-let private parenthesesScanner : Scanner =
+let private parenthesesScanner: Scanner =
     charScanner '(' OpenParentheses
     |> thenScan <| charScanner ')' CloseParentheses
 
-let private backtickScanner : Scanner = charScanner '`' Backtick
+let private backtickScanner: Scanner = charScanner '`' Backtick
 
-let private tokenScanner : Scanner =
+let private tokenScanner: Scanner =
     newLineScanner
     |> thenScan underscoreScanner
     |> thenScan asteriskScanner
@@ -99,10 +99,10 @@ let private tokenScanner : Scanner =
     |> thenScan backtickScanner
     |> thenScan textScanner
 
-let rec private tokenize (s : RawMarkdownText) : Tokens =
+let rec private tokenize (s: RawMarkdownText): Tokens =
     if s = "" then
         [ EOF ]
-    else    
+    else
         match tokenScanner s with
         | Some token ->
             let consumed = tokenLength token
@@ -116,42 +116,42 @@ type private ParseResult<'n> = ('n * int) option
 
 type private Parser<'a> = Tokens -> ParseResult<'a>
 
-let rec private matchStar (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a list> =
+let rec private matchStar (parser: Parser<'a>) (tokens: Tokens): ParseResult<'a list> =
     match parser tokens with
-    | None -> Some ([], 0)
-    | Some (node, consumed) ->
+    | None -> Some([], 0)
+    | Some(node, consumed) ->
         let remaining = tokens |> List.skip consumed
 
         match matchStar parser remaining with
-        | None -> Some ([node], consumed) // SMELL: matchStar never returns None, so we shouldn't need to match on this...
-        | Some (rNodes, rConsumed) -> Some (node :: rNodes, consumed + rConsumed)
+        | None -> Some([ node ], consumed) // SMELL: matchStar never returns None, so we shouldn't need to match on this...
+        | Some(rNodes, rConsumed) -> Some(node :: rNodes, consumed + rConsumed)
 
-let private matchPlus (parser : Parser<'a>) (tokens : Tokens) : ParseResult<'a list> =
+let private matchPlus (parser: Parser<'a>) (tokens: Tokens): ParseResult<'a list> =
     match matchStar parser tokens with
     | None -> None
-    | Some ([], _) -> None
-    | Some (nodes, consumed) -> Some (nodes, consumed)
+    | Some([], _) -> None
+    | Some(nodes, consumed) -> Some(nodes, consumed)
 
-let private orParse (next : Parser<'a>) (previous : Parser<'a>) : Parser<'a> =
+let private orParse (next: Parser<'a>) (previous: Parser<'a>): Parser<'a> =
     fun tokens ->
         match previous tokens with
         | Some result -> Some result
         | None -> next tokens
 
-let private andParse (next : Parser<'b>) (previous : Parser<'a>) : Parser<'a * 'b> =
+let private andParse (next: Parser<'b>) (previous: Parser<'a>): Parser<'a * 'b> =
     fun tokens ->
         match previous tokens with
-        | Some (prevNode, prevConsumed) ->
+        | Some(prevNode, prevConsumed) ->
             let remainingTokens = tokens |> List.skip prevConsumed
             match next remainingTokens with
-            | Some (nextNode, nextConsumed) -> Some ((prevNode, nextNode), prevConsumed + nextConsumed)
+            | Some(nextNode, nextConsumed) -> Some((prevNode, nextNode), prevConsumed + nextConsumed)
             | None -> None
         | None -> None
 
-let private mapParse (lift : 'b -> 'a) (parser : Parser<'b>) : Parser<'a> =
+let private mapParse (lift: 'b -> 'a) (parser: Parser<'b>): Parser<'a> =
     fun tokens ->
         match parser tokens with
-        | Some (node, consumed) -> Some (lift node, consumed)
+        | Some(node, consumed) -> Some(lift node, consumed)
         | None -> None
 
 // Grammar is:
@@ -192,15 +192,15 @@ type private SimpleCodeNode =
     | SimpleCodeCloseBracket
     | SimpleCodeUnderscore
     | SimpleCodeAsterisk
-type private ComplexCodeNode
-    = ComplexCodeSimpleValue of SimpleCodeNode list
+type private ComplexCodeNode =
+    | ComplexCodeSimpleValue of SimpleCodeNode list
     | ComplexCodeBacktickValue
-type private CodeNode
-    = SimpleCodeValue of SimpleCodeNode list
+type private CodeNode =
+    | SimpleCodeValue of SimpleCodeNode list
     | ComplexCodeValue of ComplexCodeNode list
 
-type private SentenceNode
-    = Text of TextNode
+type private SentenceNode =
+    | Text of TextNode
     | EmphasizedText of EmphasizedTextNode
     | BoldedText of BoldedTextNode
     | InlineLink of InlineLinkNode
@@ -212,40 +212,40 @@ type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
 
-let private singleTokenParser (target : Token) (tokens : Tokens) : ParseResult<unit> =
+let private singleTokenParser (target: Token) (tokens: Tokens): ParseResult<unit> =
     match tokens with
-    | t :: _ when t = target -> Some ((), 1)
+    | t :: _ when t = target -> Some((), 1)
     | _ -> None
 
-let private backtickParser : Parser<unit> = singleTokenParser Backtick
+let private backtickParser: Parser<unit> = singleTokenParser Backtick
 
-let private openParenthesesParser : Parser<unit> = singleTokenParser OpenParentheses
+let private openParenthesesParser: Parser<unit> = singleTokenParser OpenParentheses
 
-let private closeParenthesesParser : Parser<unit> = singleTokenParser CloseParentheses
+let private closeParenthesesParser: Parser<unit> = singleTokenParser CloseParentheses
 
-let private openBracketParser : Parser<unit> = singleTokenParser OpenBracket
+let private openBracketParser: Parser<unit> = singleTokenParser OpenBracket
 
-let private closeBracketParser : Parser<unit> = singleTokenParser CloseBracket
+let private closeBracketParser: Parser<unit> = singleTokenParser CloseBracket
 
-let private underscoreParser : Parser<unit> = singleTokenParser Underscore
+let private underscoreParser: Parser<unit> = singleTokenParser Underscore
 
-let private asteriskParser : Parser<unit> = singleTokenParser Asterisk
+let private asteriskParser: Parser<unit> = singleTokenParser Asterisk
 
-let private newLineParser : Parser<unit> = singleTokenParser NewLine
+let private newLineParser: Parser<unit> = singleTokenParser NewLine
 
-let private eofParser : Parser<unit> = singleTokenParser EOF
+let private eofParser: Parser<unit> = singleTokenParser EOF
 
-let private textParser (tokens : Tokens) : ParseResult<TextNode> =
+let private textParser (tokens: Tokens): ParseResult<TextNode> =
     match tokens with
     | Token.Text s :: _ -> (TextValue s, 1) |> Some
     | _ -> None
 
-let private emphasizedTextParser (tokens : Tokens) : ParseResult<EmphasizedTextNode> =
+let private emphasizedTextParser (tokens: Tokens): ParseResult<EmphasizedTextNode> =
     match tokens with
     | Token.Underscore :: Token.Text s :: Token.Underscore :: _ -> (EmphasizedTextValue s, 3) |> Some
     | _ -> None
 
-let private boldedTextParser (tokens : Tokens) : ParseResult<BoldedTextNode> =
+let private boldedTextParser (tokens: Tokens): ParseResult<BoldedTextNode> =
     match tokens with
     | Token.Asterisk :: Token.Asterisk :: Token.Text s :: Token.Asterisk :: Token.Asterisk :: _ ->
         (BoldedTextValue s, 5) |> Some
@@ -253,33 +253,33 @@ let private boldedTextParser (tokens : Tokens) : ParseResult<BoldedTextNode> =
         (BoldedTextValue s, 5) |> Some
     | _ -> None
 
-let private inlineLinkParser (tokens : Tokens) : ParseResult<InlineLinkNode> =
+let private inlineLinkParser (tokens: Tokens): ParseResult<InlineLinkNode> =
     match tokens with
     | Token.OpenBracket :: Token.Text name :: Token.CloseBracket :: Token.OpenParentheses :: Token.Text url :: Token.CloseParentheses :: _ ->
-        (InlineLinkValue (url, name), 6) |> Some
+        (InlineLinkValue(url, name), 6) |> Some
     | _ -> None
 
-let private simpleCodeParser : Parser<SimpleCodeNode> =
+let private simpleCodeParser: Parser<SimpleCodeNode> =
     textParser |> mapParse SimpleCodeTextValue
-    |> orParse (mapParse (fun (_) -> SimpleCodeOpenParentheses) openParenthesesParser)
-    |> orParse (mapParse (fun (_) -> SimpleCodeCloseParentheses) closeParenthesesParser)
-    |> orParse (mapParse (fun (_) -> SimpleCodeOpenBracket) openBracketParser)
-    |> orParse (mapParse (fun (_) -> SimpleCodeCloseBracket) closeBracketParser)
-    |> orParse (mapParse (fun (_) -> SimpleCodeUnderscore) underscoreParser)
-    |> orParse (mapParse (fun (_) -> SimpleCodeAsterisk) asteriskParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeOpenParentheses) openParenthesesParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeCloseParentheses) closeParenthesesParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeOpenBracket) openBracketParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeCloseBracket) closeBracketParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeUnderscore) underscoreParser)
+    |> orParse (mapParse (fun _ -> SimpleCodeAsterisk) asteriskParser)
 
-let private simpleCodeValueParser : Parser<CodeNode> =
+let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
     |> andParse (matchPlus simpleCodeParser)
     |> mapParse (fun (_, nodes) -> SimpleCodeValue nodes)
     |> andParse backtickParser
     |> mapParse (fun (node, _) -> node)
 
-let private complexCodeParser : Parser<CodeNode> =
+let private complexCodeParser: Parser<CodeNode> =
     let simplePlus = matchPlus simpleCodeParser |> mapParse ComplexCodeSimpleValue
 
     let chunk =
-        backtickParser|> mapParse (fun (_) -> ComplexCodeBacktickValue)
+        backtickParser |> mapParse (fun _ -> ComplexCodeBacktickValue)
         |> andParse simplePlus
         |> mapParse (fun (f, s) -> [ f; s ])
 
@@ -288,7 +288,7 @@ let private complexCodeParser : Parser<CodeNode> =
     let content =
         simplePlus
         |> andParse (matchStar chunk)
-        |> mapParse (fun (first, chunks) -> first :: List.concat chunks )
+        |> mapParse (fun (first, chunks) -> first :: List.concat chunks)
         |> mapParse ComplexCodeValue
 
     doubleBacktick
@@ -297,52 +297,52 @@ let private complexCodeParser : Parser<CodeNode> =
     |> andParse doubleBacktick
     |> mapParse (fun (f, _) -> f)
 
-let private codeParser : Parser<CodeNode> =
+let private codeParser: Parser<CodeNode> =
     simpleCodeValueParser
     |> orParse complexCodeParser
 
-let private sentenceParser : Parser<SentenceNode> =
+let private sentenceParser: Parser<SentenceNode> =
     mapParse EmphasizedText emphasizedTextParser
     |> orParse <| mapParse BoldedText boldedTextParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
     |> orParse <| mapParse Text textParser
 
-let private lineParser : Parser<LineNode> =
+let private lineParser: Parser<LineNode> =
     matchPlus sentenceParser
     |> mapParse LineNode.Sentence
 
-let private subsequentLineParser : Parser<SubsequentLineNode> =
+let private subsequentLineParser: Parser<SubsequentLineNode> =
     newLineParser
     |> andParse (matchPlus sentenceParser)
     |> mapParse (fun (_, r) -> SubsequentLineNode.Sentence r)
 
-let private paragraphNodeParser : Parser<ParagraphNode> =
+let private paragraphNodeParser: Parser<ParagraphNode> =
     lineParser
     |> andParse (matchStar subsequentLineParser)
     |> mapParse ParagraphNode.Lines
     |> andParse (matchStar newLineParser)
     |> mapParse (fun (r, _) -> r)
 
-let private bodyNodeParser : Parser<BodyNode> =
+let private bodyNodeParser: Parser<BodyNode> =
     matchStar paragraphNodeParser
     |> andParse eofParser
     |> mapParse (fun (n, _) -> Paragraphs n)
 
-let private parse (tokens : Tokens) : BodyNode option =
+let private parse (tokens: Tokens): BodyNode option =
     match bodyNodeParser tokens with
-    | Some (bodyNode, consumed) ->
+    | Some(bodyNode, consumed) ->
         if consumed = List.length tokens then
             Some bodyNode
         else
-            None        
+            None
     | None -> None
 
 // AST to public types
 
-let private renderSimpleCode (node : SimpleCodeNode) : string =
+let private renderSimpleCode (node: SimpleCodeNode): string =
     match node with
-    | SimpleCodeTextValue (TextValue code) -> code
+    | SimpleCodeTextValue(TextValue code) -> code
     | SimpleCodeOpenParentheses -> "("
     | SimpleCodeCloseParentheses -> ")"
     | SimpleCodeOpenBracket -> "["
@@ -350,7 +350,7 @@ let private renderSimpleCode (node : SimpleCodeNode) : string =
     | SimpleCodeUnderscore -> "_"
     | SimpleCodeAsterisk -> "*"
 
-let private renderComplexCode (node : ComplexCodeNode) : string =
+let private renderComplexCode (node: ComplexCodeNode): string =
     match node with
     | ComplexCodeSimpleValue nodes ->
         nodes
@@ -358,7 +358,7 @@ let private renderComplexCode (node : ComplexCodeNode) : string =
         |> String.concat ""
     | ComplexCodeBacktickValue -> "`"
 
-let private renderCode (node : CodeNode) : MarkdownElement =
+let private renderCode (node: CodeNode): MarkdownElement =
     match node with
     | SimpleCodeValue nodes ->
         nodes
@@ -371,36 +371,36 @@ let private renderCode (node : CodeNode) : MarkdownElement =
         |> String.concat ""
         |> MarkdownElement.Code
 
-let private renderSentence (sentence : SentenceNode) : MarkdownElement =
+let private renderSentence (sentence: SentenceNode): MarkdownElement =
     match sentence with
-    | Text (TextValue value) -> Span value
-    | EmphasizedText (EmphasizedTextValue value) -> Emphasized value
-    | BoldedText (BoldedTextValue value) -> Bolded value
-    | InlineLink (InlineLinkValue (url, name)) -> MarkdownElement.InlineLink (url, name)
+    | Text(TextValue value) -> Span value
+    | EmphasizedText(EmphasizedTextValue value) -> Emphasized value
+    | BoldedText(BoldedTextValue value) -> Bolded value
+    | InlineLink(InlineLinkValue(url, name)) -> MarkdownElement.InlineLink(url, name)
     | Code code -> renderCode code
 
-let private renderLine (line : LineNode) : MarkdownElement list =
+let private renderLine (line: LineNode): MarkdownElement list =
     match line with
     | LineNode.Sentence sentences ->
         sentences
         |> List.map renderSentence
 
-let private renderSubsequentLine (line : SubsequentLineNode) : MarkdownElement list =
+let private renderSubsequentLine (line: SubsequentLineNode): MarkdownElement list =
     match line with
     | SubsequentLineNode.Sentence sentences ->
         sentences
         |> List.map renderSentence
 
-let private renderParagraph (paragraph : ParagraphNode) : MarkdownParagraph =
+let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
     match paragraph with
-    | Lines (line, subsequent) ->
+    | Lines(line, subsequent) ->
         let flatten = List.fold List.append []
 
         let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
 
-let private render (body : BodyNode) : Markdown =
+let private render (body: BodyNode): Markdown =
     match body with
     | Paragraphs paragraphs ->
         paragraphs
@@ -408,7 +408,7 @@ let private render (body : BodyNode) : Markdown =
 
 // public functions
 
-let ParseOwn (s : string) : Markdown option =
+let ParseOwn(s: string): Markdown option =
     s
     |> tokenize
     |> parse
