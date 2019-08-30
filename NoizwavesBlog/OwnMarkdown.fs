@@ -12,7 +12,7 @@ type MarkdownElement =
 
 type MarkdownParagraph =
     | Paragraph of MarkdownElement list
-    | Heading1 of string
+    | Heading1 of MarkdownElement list
 
 type Markdown = MarkdownParagraph list
 
@@ -64,6 +64,7 @@ let private thenScan (next: Scanner) (previous: Scanner): Scanner =
 // Scanners
 
 let private textScanner (s: RawMarkdownText): ScanResult =
+    // BUG: we should be stopping at "# "?
     let stopAt = [ '\n'; '_'; '*'; '['; ']'; '('; ')'; '`' ]
 
     s
@@ -173,7 +174,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
-//                     | T(HashSpace) Text T(NewLine)*
+//                     | T(HashSpace) Sentence* T(NewLine)*
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
 // SentenceStart      := EmphasizedText
@@ -229,12 +230,12 @@ type private SentenceNode =
     | BoldedText of BoldedTextNode
     | InlineLink of InlineLinkNode
     | Code of CodeNode
-    | HashSpace
+    | HashSpace // BUG: do we need this?
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
-    | Heading1 of TextNode
+    | Heading1 of SentenceNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
@@ -370,7 +371,7 @@ let private paragraphLinesParser: Parser<ParagraphNode> =
 
 let private paragraphHeading1Parser: Parser<ParagraphNode> =
     hashSpaceParser
-    |> andParse textParser
+    |> andParse (matchStar sentenceParser)
     |> keepSecondParse
     |> andParse (matchStar newLineParser)
     |> keepFirstParse
@@ -458,7 +459,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
-    | Heading1(TextValue t) -> MarkdownParagraph.Heading1 t
+    | Heading1(sentences) ->
+        sentences
+        |> List.map renderSentence
+        |> MarkdownParagraph.Heading1
 
 let private render (body: BodyNode): Markdown =
     match body with
