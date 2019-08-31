@@ -16,6 +16,7 @@ type MarkdownParagraph =
     | Heading2 of MarkdownElement list
     | Heading3 of MarkdownElement list
     | CodeBlock of string
+    | QuoteBlock of string
 
 type Markdown = MarkdownParagraph list
 
@@ -35,6 +36,7 @@ type private Token =
     | Backtick
     | Hash
     | HashSpace
+    | GreaterThanSpace
     | EOF
 
 let private tokenLength (t: Token): int =
@@ -50,6 +52,7 @@ let private tokenLength (t: Token): int =
     | Backtick -> 1
     | Hash -> 1
     | HashSpace -> 2
+    | GreaterThanSpace -> 2
     | EOF -> 0
 
 // Scanner builders
@@ -102,6 +105,9 @@ let private backtickScanner: Scanner = charScanner '`' Backtick
 let private hashSpaceScanner (text: RawMarkdownText): ScanResult =
     if text.StartsWith "# " then Some HashSpace else None
 
+let private greaterThanSpaceScanner (text: RawMarkdownText): ScanResult =
+    if text.StartsWith "> " then Some GreaterThanSpace else None
+
 let private hashScanner: Scanner = charScanner '#' Hash
 
 let private tokenScanner: Scanner =
@@ -113,6 +119,7 @@ let private tokenScanner: Scanner =
     |> thenScan backtickScanner
     |> thenScan hashSpaceScanner
     |> thenScan hashScanner
+    |> thenScan greaterThanSpaceScanner
     |> thenScan textScanner
 
 let rec private tokenize (s: RawMarkdownText): Tokens =
@@ -186,6 +193,9 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | T(Hash) T(HashSpace) Sentence* T(NewLine)*
 //                     | T(HashSpace) Sentence* T(NewLine)*
 //                     | CodeBlock T(NewLine)*
+//                     | QuoteBlockLine (T(NewLine) QuoteBlockLine)+ T(NewLine)*
+// QuoteBlockLine     := T(GreaterThanSpace) QuoteBlockPart+
+// QuoteBlockPart     := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(Backtick) | T(GreaterThanSpace)
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
 // SentenceStart      := EmphasizedText
@@ -201,12 +211,12 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | T(HashSpace)
 // CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
 // CodeBlockLine      := CodeBlockPart+ (T)NewLine
-// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace)
+// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace)
 // TripleBacktick     := T(Backtick) T(Backtick) T(Backtick)
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
 // ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
-// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace)
+// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace)
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -233,6 +243,7 @@ type private SimpleCodeNode =
     | SimpleCodeAsterisk
     | SimpleCodeHash
     | SimpleCodeHashSpace
+    | SimpleCodeGreaterThanSpace
 type private ComplexCodeNode =
     | ComplexCodeSimpleValue of SimpleCodeNode list
     | ComplexCodeBacktickValue
@@ -260,13 +271,29 @@ type private CodeBlockPartNode =
     | CodeBlockPartAsterisk
     | CodeBlockPartHash
     | CodeBlockPartHashSpace
-
+    | CodeBlockPartGreaterThanSpace
 type private CodeBlockLineNode =
     | CodeBlockLineValue of CodeBlockPartNode list
+
+type private QuoteBlockPartNode =
+    | QuoteBlockPartText of TextNode
+    | QuoteBlockPartOpenParentheses
+    | QuoteBlockPartCloseParentheses
+    | QuoteBlockPartOpenBracket
+    | QuoteBlockPartCloseBracket
+    | QuoteBlockPartUnderscore
+    | QuoteBlockPartAsterisk
+    | QuoteBlockPartHash
+    | QuoteBlockPartHashSpace
+    | QuoteBlockPartBacktick
+    | QuoteBlockPartGreaterThanSpace
+type private QuoteBlockLineNode =
+    | QuoteBlockLineValue of QuoteBlockPartNode list
 
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
     | CodeBlock of CodeBlockLineNode list
+    | QuoteBlock of QuoteBlockLineNode list
     | Heading1 of SentenceNode list
     | Heading2 of SentenceNode list
     | Heading3 of SentenceNode list
@@ -298,6 +325,8 @@ let private newLineParser: Parser<unit> = singleTokenParser NewLine
 let private hashParser: Parser<unit> = singleTokenParser Token.Hash
 
 let private hashSpaceParser: Parser<unit> = singleTokenParser Token.HashSpace
+
+let private greaterThanSpaceParser: Parser<unit> = singleTokenParser Token.GreaterThanSpace
 
 let private eofParser: Parser<unit> = singleTokenParser EOF
 
@@ -335,6 +364,7 @@ let private simpleCodeParser: Parser<SimpleCodeNode> =
     |> orParse (map0Parse SimpleCodeAsterisk asteriskParser)
     |> orParse (map0Parse SimpleCodeHash hashParser)
     |> orParse (map0Parse SimpleCodeHashSpace hashSpaceParser)
+    |> orParse (map0Parse SimpleCodeGreaterThanSpace greaterThanSpaceParser)
 
 let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
@@ -444,6 +474,7 @@ let private codeBlockPartParser: Parser<CodeBlockPartNode> =
     |> orParse (asteriskParser |> map0Parse CodeBlockPartAsterisk)
     |> orParse (hashParser |> map0Parse CodeBlockPartHash)
     |> orParse (hashSpaceParser |> map0Parse CodeBlockPartHashSpace)
+    |> orParse (greaterThanSpaceParser |> map0Parse CodeBlockPartGreaterThanSpace)
 
 let private codeBlockLineParser: Parser<CodeBlockLineNode> =
     matchPlus codeBlockPartParser
@@ -468,9 +499,43 @@ let private codeBlockParser: Parser<ParagraphNode> =
     |> andParse (matchStar newLineParser)
     |> keepFirstParse
 
+let private quoteBlockParser: Parser<ParagraphNode> =
+    let quoteBlockPartParser: Parser<QuoteBlockPartNode> =
+        textParser
+        |> mapParse QuoteBlockPartText
+        |> orParse (openParenthesesParser |> map0Parse QuoteBlockPartOpenParentheses)
+        |> orParse (closeParenthesesParser |> map0Parse QuoteBlockPartCloseParentheses)
+        |> orParse (openBracketParser |> map0Parse QuoteBlockPartOpenBracket)
+        |> orParse (closeBracketParser |> map0Parse QuoteBlockPartCloseBracket)
+        |> orParse (underscoreParser |> map0Parse QuoteBlockPartUnderscore)
+        |> orParse (asteriskParser |> map0Parse QuoteBlockPartAsterisk)
+        |> orParse (hashParser |> map0Parse QuoteBlockPartHash)
+        |> orParse (hashSpaceParser |> map0Parse QuoteBlockPartHashSpace)
+        |> orParse (backtickParser |> map0Parse QuoteBlockPartBacktick)
+        |> orParse (greaterThanSpaceParser |> map0Parse QuoteBlockPartGreaterThanSpace)
+
+    let quoteBlockLineParser: Parser<QuoteBlockLineNode> =
+        greaterThanSpaceParser
+        |> andParse (matchPlus quoteBlockPartParser)
+        |> keepSecondParse
+        |> mapParse QuoteBlockLineValue
+
+    let subsequent: Parser<QuoteBlockLineNode> =
+        newLineParser
+        |> andParse quoteBlockLineParser
+        |> keepSecondParse
+
+    quoteBlockLineParser
+    |> andParse (matchStar subsequent)
+    |> mapParse (fun (n, nn) -> n :: nn)
+    |> mapParse QuoteBlock
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
+
 let private paragraphNodeParser: Parser<ParagraphNode> =
     paragraphLinesParser
     |> orParse codeBlockParser
+    |> orParse quoteBlockParser
     |> orParse paragraphHeading3Parser
     |> orParse paragraphHeading2Parser
     |> orParse paragraphHeading1Parser
@@ -503,6 +568,7 @@ let private renderSimpleCode (node: SimpleCodeNode): string =
     | SimpleCodeAsterisk -> "*"
     | SimpleCodeHash -> "#"
     | SimpleCodeHashSpace -> "# "
+    | SimpleCodeGreaterThanSpace -> "> "
 
 let private renderComplexCode (node: ComplexCodeNode): string =
     match node with
@@ -546,6 +612,32 @@ let private renderSubsequentLine (line: SubsequentLineNode): MarkdownElement lis
         sentences
         |> List.map renderSentence
 
+let private renderQuoteBlockLines (nodes: QuoteBlockLineNode list): string =
+    let renderQuoteBlockPart (node: QuoteBlockPartNode): string =
+        match node with
+        | QuoteBlockPartText(TextValue text) -> text
+        | QuoteBlockPartOpenParentheses -> "("
+        | QuoteBlockPartCloseParentheses -> ")"
+        | QuoteBlockPartOpenBracket -> "["
+        | QuoteBlockPartCloseBracket -> "]"
+        | QuoteBlockPartUnderscore -> "_"
+        | QuoteBlockPartAsterisk -> "*"
+        | QuoteBlockPartHash -> "#"
+        | QuoteBlockPartHashSpace -> "# "
+        | QuoteBlockPartBacktick -> "`"
+        | QuoteBlockPartGreaterThanSpace -> "> "
+
+    let renderQuoteBlockLine (node: QuoteBlockLineNode): string =
+        match node with
+        | QuoteBlockLineValue(parts) ->
+            parts
+            |> List.map renderQuoteBlockPart
+            |> String.concat ""
+
+    nodes
+    |> List.map renderQuoteBlockLine
+    |> String.concat " "
+
 let private renderCodeBlockLines (lines: CodeBlockLineNode list): string =
     let renderCodeBlockPart (node: CodeBlockPartNode): string =
         match node with
@@ -558,6 +650,7 @@ let private renderCodeBlockLines (lines: CodeBlockLineNode list): string =
         | CodeBlockPartAsterisk -> "*"
         | CodeBlockPartHash -> "#"
         | CodeBlockPartHashSpace -> "# "
+        | CodeBlockPartGreaterThanSpace -> "> "
 
     let renderCodeBlockLine (line: CodeBlockLineNode): string =
         match line with
@@ -582,6 +675,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         lines
         |> renderCodeBlockLines
         |> MarkdownParagraph.CodeBlock
+    | QuoteBlock(lines) ->
+        lines
+        |> renderQuoteBlockLines
+        |> MarkdownParagraph.QuoteBlock
     | Heading1(sentences) ->
         sentences
         |> List.map renderSentence

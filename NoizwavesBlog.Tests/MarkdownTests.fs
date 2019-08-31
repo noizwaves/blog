@@ -130,8 +130,8 @@ let ``Inline code span containing multiple literal backticks``() =
 
 [<Fact>]
 let ``Inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*#])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """`([_*#])# `"""
+    let expected: Markdown = [ Paragraph [ Code "([_*#])# > " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """`([_*#])# > `"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
@@ -142,14 +142,14 @@ let ``Inline code span containing a syntactically valid link``() =
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*#])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_*#])# ``"""
+    let expected: Markdown = [ Paragraph [ Code "([_*#])# > " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_*#])# > ``"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters and escaped backticks``() =
-    let expected: Markdown = [ Paragraph [ Code "([_`*`#])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_`*`#])# ``"""
+    let expected: Markdown = [ Paragraph [ Code "([_`*`#])# > " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_`*`#])# > ``"""
     Assert.Equal<Markdown>(expected, actual)
 
 // Heading 1
@@ -328,11 +328,42 @@ foo
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
-let ``Block of code containing symbols``() =
-    let expected: Markdown = [ CodeBlock "([_*])# #" ]
+let ``Block of code containing token characters``() =
+    let expected: Markdown = [ CodeBlock "([_*])# > #" ]
     let actual: Markdown = Option.get <| ParseOwn """```
-([_*])# #
+([_*])# > #
 ```"""
+    Assert.Equal<Markdown>(expected, actual)
+
+// QuoteBlock
+
+[<Fact>]
+let ``Single line quote block``() =
+    let expected: Markdown = [ QuoteBlock "Foo" ]
+    let actual: Markdown = Option.get <| ParseOwn """> Foo"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Multiline quote block``() =
+    let expected: Markdown = [ QuoteBlock "Foo Bar Baz" ]
+    let actual: Markdown = Option.get <| ParseOwn """> Foo
+> Bar
+> Baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Quote block with trailing new lines``() =
+    let expected: Markdown = [ QuoteBlock "Foo Bar" ]
+    let actual: Markdown = Option.get <| ParseOwn """> Foo
+> Bar
+
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Quote block containing token characters``() =
+    let expected: Markdown = [ QuoteBlock "([_*])`# > #" ]
+    let actual: Markdown = Option.get <| ParseOwn "> ([_*])`# > #"
     Assert.Equal<Markdown>(expected, actual)
 
 //[<Fact>]
