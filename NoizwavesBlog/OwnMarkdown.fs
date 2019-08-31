@@ -14,6 +14,7 @@ type MarkdownParagraph =
     | Paragraph of MarkdownElement list
     | Heading1 of MarkdownElement list
     | Heading2 of MarkdownElement list
+    | Heading3 of MarkdownElement list
     | CodeBlock of string
 
 type Markdown = MarkdownParagraph list
@@ -181,6 +182,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
+//                     | T(Hash) T(Hash) T(HashSpace) Sentence* T(NewLine)*
 //                     | T(Hash) T(HashSpace) Sentence* T(NewLine)*
 //                     | T(HashSpace) Sentence* T(NewLine)*
 //                     | CodeBlock T(NewLine)*
@@ -267,6 +269,7 @@ type private ParagraphNode =
     | CodeBlock of CodeBlockLineNode list
     | Heading1 of SentenceNode list
     | Heading2 of SentenceNode list
+    | Heading3 of SentenceNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
@@ -420,6 +423,16 @@ let private paragraphHeading2Parser: Parser<ParagraphNode> =
     |> keepFirstParse
     |> mapParse ParagraphNode.Heading2
 
+let private paragraphHeading3Parser: Parser<ParagraphNode> =
+    hashParser
+    |> andParse hashParser
+    |> andParse hashSpaceParser
+    |> andParse (matchStar sentenceParser)
+    |> keepSecondParse
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
+    |> mapParse ParagraphNode.Heading3
+
 let private codeBlockPartParser: Parser<CodeBlockPartNode> =
     textParser
     |> mapParse CodeBlockPartTextValue
@@ -458,6 +471,7 @@ let private codeBlockParser: Parser<ParagraphNode> =
 let private paragraphNodeParser: Parser<ParagraphNode> =
     paragraphLinesParser
     |> orParse codeBlockParser
+    |> orParse paragraphHeading3Parser
     |> orParse paragraphHeading2Parser
     |> orParse paragraphHeading1Parser
 
@@ -576,6 +590,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         sentences
         |> List.map renderSentence
         |> MarkdownParagraph.Heading2
+    | Heading3(sentences) ->
+        sentences
+        |> List.map renderSentence
+        |> MarkdownParagraph.Heading3
 
 let private render (body: BodyNode): Markdown =
     match body with

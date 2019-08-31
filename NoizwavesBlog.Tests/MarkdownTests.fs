@@ -253,6 +253,50 @@ let ``Heading 2 that includes sentence parts``() =
     let actual: Markdown = Option.get <| ParseOwn "## _foo_ **bar** baz ## h2 `Qux`[quux](quuz)"
     Assert.Equal<Markdown>(expected, actual)
 
+// Heading3
+
+[<Fact>]
+let ``Heading 3``() =
+    let expected: Markdown = [ Heading3 [ Span "Foo" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """### Foo"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 3 immediately followed by paragraph``() =
+    let expected: Markdown = [ Heading3 [ Span "foo" ]; Paragraph [ Span "bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """### foo
+bar
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 3 followed by paragraph``() =
+    let expected: Markdown = [ Heading3 [ Span "foo" ]; Paragraph [ Span "bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """### foo
+
+bar
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Regular paragraph with subsequent sentence containing heading 3-like characters``() =
+    let expected: Markdown = [ Paragraph [ Span "foo"; Span "bar ### baz" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """foo
+bar ### baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 3 that includes the hash space string``() =
+    let expected: Markdown = [ Heading3 [ Span "foo ### bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn "### foo ### bar"
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 3 that includes sentence parts``() =
+    let expected: Markdown = [ Heading3 [ Emphasized "foo"; Span " "; Bolded "bar"; Span " baz ### h3 "; Code "Qux"; InlineLink("quuz", "quux") ] ]
+    let actual: Markdown = Option.get <| ParseOwn "### _foo_ **bar** baz ### h3 `Qux`[quux](quuz)"
+    Assert.Equal<Markdown>(expected, actual)
+
 // CodeBlock
 
 [<Fact>]
