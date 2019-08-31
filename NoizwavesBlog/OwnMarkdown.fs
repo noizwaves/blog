@@ -13,6 +13,7 @@ type MarkdownElement =
 type MarkdownParagraph =
     | Paragraph of MarkdownElement list
     | Heading1 of MarkdownElement list
+    | Heading2 of MarkdownElement list
 
 type Markdown = MarkdownParagraph list
 
@@ -30,6 +31,7 @@ type private Token =
     | OpenParentheses
     | CloseParentheses
     | Backtick
+    | Hash
     | HashSpace
     | EOF
 
@@ -44,6 +46,7 @@ let private tokenLength (t: Token): int =
     | OpenParentheses -> 1
     | CloseParentheses -> 1
     | Backtick -> 1
+    | Hash -> 1
     | HashSpace -> 2
     | EOF -> 0
 
@@ -97,6 +100,8 @@ let private backtickScanner: Scanner = charScanner '`' Backtick
 let private hashSpaceScanner (text: RawMarkdownText): ScanResult =
     if text.StartsWith "# " then Some HashSpace else None
 
+let private hashScanner: Scanner = charScanner '#' Hash
+
 let private tokenScanner: Scanner =
     newLineScanner
     |> thenScan underscoreScanner
@@ -105,6 +110,7 @@ let private tokenScanner: Scanner =
     |> thenScan parenthesesScanner
     |> thenScan backtickScanner
     |> thenScan hashSpaceScanner
+    |> thenScan hashScanner
     |> thenScan textScanner
 
 let rec private tokenize (s: RawMarkdownText): Tokens =
@@ -174,6 +180,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Grammar is:
 // Body               := Paragraph* T(EOF)
 // Paragraph          := Line SubsequentLine* T(NewLine)*
+//                     | T(Hash) T(HashSpace) Sentence* T(NewLine)*
 //                     | T(HashSpace) Sentence* T(NewLine)*
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
@@ -236,6 +243,7 @@ type private SubsequentLineNode = Sentence of SentenceNode list
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
     | Heading1 of SentenceNode list
+    | Heading2 of SentenceNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
@@ -260,6 +268,8 @@ let private underscoreParser: Parser<unit> = singleTokenParser Underscore
 let private asteriskParser: Parser<unit> = singleTokenParser Asterisk
 
 let private newLineParser: Parser<unit> = singleTokenParser NewLine
+
+let private hashParser: Parser<unit> = singleTokenParser Token.Hash
 
 let private hashSpaceParser: Parser<unit> = singleTokenParser Token.HashSpace
 
@@ -377,8 +387,18 @@ let private paragraphHeading1Parser: Parser<ParagraphNode> =
     |> keepFirstParse
     |> mapParse ParagraphNode.Heading1
 
+let private paragraphHeading2Parser: Parser<ParagraphNode> =
+    hashParser
+    |> andParse hashSpaceParser
+    |> andParse (matchStar sentenceParser)
+    |> keepSecondParse
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
+    |> mapParse ParagraphNode.Heading2
+
 let private paragraphNodeParser: Parser<ParagraphNode> =
     paragraphLinesParser
+    |> orParse paragraphHeading2Parser
     |> orParse paragraphHeading1Parser
 
 let private bodyNodeParser: Parser<BodyNode> =
@@ -463,6 +483,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         sentences
         |> List.map renderSentence
         |> MarkdownParagraph.Heading1
+    | Heading2(sentences) ->
+        sentences
+        |> List.map renderSentence
+        |> MarkdownParagraph.Heading2
 
 let private render (body: BodyNode): Markdown =
     match body with

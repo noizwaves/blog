@@ -152,6 +152,8 @@ let ``Double backticked inline code span containing multiple token characters an
     let actual: Markdown = Option.get <| ParseOwn """``([_`*`])# ``"""
     Assert.Equal<Markdown>(expected, actual)
 
+// Heading 1
+
 [<Fact>]
 let ``Heading 1``() =
     let expected: Markdown = [ Heading1 [ Span "Foo" ] ]
@@ -207,6 +209,62 @@ let ``Heading 1 that includes sentence parts``() =
     let actual: Markdown = Option.get <| ParseOwn "# _foo_ **bar** baz # h1 `Qux`[quux](quuz)"
     Assert.Equal<Markdown>(expected, actual)
 
+// Heading2
+
+[<Fact>]
+let ``Heading 2``() =
+    let expected: Markdown = [ Heading2 [ Span "Foo" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """## Foo"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 2 immediately followed by paragraph``() =
+    let expected: Markdown = [ Heading2 [ Span "foo" ]; Paragraph [ Span "bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """## foo
+bar
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 2 followed by paragraph``() =
+    let expected: Markdown = [ Heading2 [ Span "foo" ]; Paragraph [ Span "bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """## foo
+
+bar
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Regular paragraph with subsequent sentence containing heading 2-like characters``() =
+    let expected: Markdown = [ Paragraph [ Span "foo"; Span "bar ## baz" ] ]
+    let actual: Markdown = Option.get <| ParseOwn """foo
+bar ## baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 2 that includes the hash space string``() =
+    let expected: Markdown = [ Heading2 [ Span "foo ## bar" ] ]
+    let actual: Markdown = Option.get <| ParseOwn "## foo ## bar"
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Heading 2 that includes sentence parts``() =
+    let expected: Markdown = [ Heading2 [ Emphasized "foo"; Span " "; Bolded "bar"; Span " baz ## h2 "; Code "Qux"; InlineLink("quuz", "quux") ] ]
+    let actual: Markdown = Option.get <| ParseOwn "## _foo_ **bar** baz ## h2 `Qux`[quux](quuz)"
+    Assert.Equal<Markdown>(expected, actual)
+
+//[<Fact>]
+//let ``A heading 1 whose contents starts with a hash``() =
+//    let expected: Markdown = [ Heading1 [ Span "#foo" ] ]
+//    let actual: Markdown = Option.get <| ParseOwn "# #foo"
+//    Assert.Equal<Markdown>(expected, actual)
+//
+//[<Fact>]
+//let ``A heading 2 whose contents starts with a hash``() =
+//    let expected: Markdown = [ Heading1 [ Span "#foo" ] ]
+//    let actual: Markdown = Option.get <| ParseOwn "## #foo"
+//    Assert.Equal<Markdown>(expected, actual)
+//
 //[<Fact>]
 //let ``An element whose inner text that starts with a Heading 1``() =
 //    let expected: Markdown = [ Paragraph [ Bolded " # foo" ] ]
