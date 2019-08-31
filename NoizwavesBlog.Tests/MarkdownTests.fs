@@ -43,7 +43,7 @@ Bar"""
 let ``Multiple paragraphs``() =
     let expected: Markdown =
         [ Paragraph [ Span "Foo" ]
-   ; Paragraph [ Span "Bar"; Span "Baz" ]
+        ; Paragraph [ Span "Bar"; Span "Baz" ]
         ]
     let actual: Markdown = Option.get <| ParseOwn """Foo
 
@@ -77,14 +77,14 @@ let ``Mix of regular, bolded, and emphasized text in a paragraph``() =
     let expected: Markdown =
         [ Paragraph
             [ Emphasized "Foo"
-       ; Span " Bar"
-       ; Span "Baz "
-       ; Emphasized "Qux"
-       ; Bolded "Quux"
-       ; Span " Quuz "
-       ; Emphasized "Corge"
-       ; Span " "
-       ; Bolded "Grault"
+            ; Span " Bar"
+            ; Span "Baz "
+            ; Emphasized "Qux"
+            ; Bolded "Quux"
+            ; Span " Quuz "
+            ; Emphasized "Corge"
+            ; Span " "
+            ; Bolded "Grault"
             ]
         ]
     let actual: Markdown = Option.get <| ParseOwn """_Foo_ Bar
