@@ -253,6 +253,46 @@ let ``Heading 2 that includes sentence parts``() =
     let actual: Markdown = Option.get <| ParseOwn "## _foo_ **bar** baz ## h2 `Qux`[quux](quuz)"
     Assert.Equal<Markdown>(expected, actual)
 
+// CodeBlock
+
+[<Fact>]
+let ``Single line block of code``() =
+    let expected: Markdown = [ CodeBlock "foo" ]
+    let actual: Markdown = Option.get <| ParseOwn """```
+foo
+```"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Multiline block of code``() =
+    let expected: Markdown = [ CodeBlock "foo\nbar\nbaz" ]
+    let actual: Markdown = Option.get <| ParseOwn """```
+foo
+bar
+baz
+```"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Block of code with trailing new lines``() =
+    let expected: Markdown = [ CodeBlock "foo" ]
+    let actual: Markdown = Option.get <| ParseOwn """```
+foo
+```
+
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Block of code containing symbols``() =
+    let expected: Markdown = [ CodeBlock "([_*])# #" ]
+    let actual: Markdown = Option.get <| ParseOwn """```
+([_*])# #
+```"""
+    Assert.Equal<Markdown>(expected, actual)
+
+// TODO: add test for Hash token in inline elements
+
 //[<Fact>]
 //let ``A heading 1 whose contents starts with a hash``() =
 //    let expected: Markdown = [ Heading1 [ Span "#foo" ] ]

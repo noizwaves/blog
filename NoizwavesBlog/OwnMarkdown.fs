@@ -14,6 +14,7 @@ type MarkdownParagraph =
     | Paragraph of MarkdownElement list
     | Heading1 of MarkdownElement list
     | Heading2 of MarkdownElement list
+    | CodeBlock of string
 
 type Markdown = MarkdownParagraph list
 
@@ -182,6 +183,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Paragraph          := Line SubsequentLine* T(NewLine)*
 //                     | T(Hash) T(HashSpace) Sentence* T(NewLine)*
 //                     | T(HashSpace) Sentence* T(NewLine)*
+//                     | CodeBlock T(NewLine)*
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
 // SentenceStart      := EmphasizedText
@@ -195,6 +197,10 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | InlineLink
 //                     | Code
 //                     | T(HashSpace)
+// CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
+// CodeBlockLine      := CodeBlockPart+ (T)NewLine
+// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(HashSpace)
+// TripleBacktick     := T(Backtick) T(Backtick) T(Backtick)
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
 // ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
@@ -240,8 +246,24 @@ type private SentenceNode =
     | HashSpace // BUG: do we need this?
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
+
+type private CodeBlockPartNode =
+    | CodeBlockPartTextValue of TextNode
+    | CodeBlockPartOpenParentheses
+    | CodeBlockPartCloseParentheses
+    | CodeBlockPartOpenBracket
+    | CodeBlockPartCloseBracket
+    | CodeBlockPartUnderscore
+    | CodeBlockPartAsterisk
+    | CodeBlockPartHash
+    | CodeBlockPartHashSpace
+
+type private CodeBlockLineNode =
+    | CodeBlockLineValue of CodeBlockPartNode list
+
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
+    | CodeBlock of CodeBlockLineNode list
     | Heading1 of SentenceNode list
     | Heading2 of SentenceNode list
 type private BodyNode = Paragraphs of ParagraphNode list
@@ -396,8 +418,44 @@ let private paragraphHeading2Parser: Parser<ParagraphNode> =
     |> keepFirstParse
     |> mapParse ParagraphNode.Heading2
 
+let private codeBlockPartParser: Parser<CodeBlockPartNode> =
+    textParser
+    |> mapParse CodeBlockPartTextValue
+    |> orParse (openParenthesesParser |> map0Parse CodeBlockPartOpenParentheses)
+    |> orParse (closeParenthesesParser |> map0Parse CodeBlockPartCloseParentheses)
+    |> orParse (openBracketParser |> map0Parse CodeBlockPartOpenBracket)
+    |> orParse (closeBracketParser |> map0Parse CodeBlockPartCloseBracket)
+    |> orParse (underscoreParser |> map0Parse CodeBlockPartUnderscore)
+    |> orParse (asteriskParser |> map0Parse CodeBlockPartAsterisk)
+    |> orParse (hashParser |> map0Parse CodeBlockPartHash)
+    |> orParse (hashSpaceParser |> map0Parse CodeBlockPartHashSpace)
+
+let private codeBlockLineParser: Parser<CodeBlockLineNode> =
+    matchPlus codeBlockPartParser
+    |> andParse newLineParser
+    |> keepFirstParse
+    |> mapParse CodeBlockLineValue
+
+let private codeBlockParser: Parser<ParagraphNode> =
+    let tripleBacktick =
+        backtickParser
+        |> andParse backtickParser
+        |> andParse backtickParser
+
+    let content: Parser<CodeBlockLineNode list> = matchPlus codeBlockLineParser
+
+    tripleBacktick |> andParse newLineParser
+    |> andParse content
+    |> keepSecondParse
+    |> andParse tripleBacktick
+    |> keepFirstParse
+    |> mapParse CodeBlock
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
+
 let private paragraphNodeParser: Parser<ParagraphNode> =
     paragraphLinesParser
+    |> orParse codeBlockParser
     |> orParse paragraphHeading2Parser
     |> orParse paragraphHeading1Parser
 
@@ -471,6 +529,30 @@ let private renderSubsequentLine (line: SubsequentLineNode): MarkdownElement lis
         sentences
         |> List.map renderSentence
 
+let private renderCodeBlockLines (lines: CodeBlockLineNode list): string =
+    let renderCodeBlockPart (node: CodeBlockPartNode): string =
+        match node with
+        | CodeBlockPartTextValue(TextValue t) -> t
+        | CodeBlockPartOpenParentheses -> "("
+        | CodeBlockPartCloseParentheses -> ")"
+        | CodeBlockPartOpenBracket -> "["
+        | CodeBlockPartCloseBracket -> "]"
+        | CodeBlockPartUnderscore -> "_"
+        | CodeBlockPartAsterisk -> "*"
+        | CodeBlockPartHash -> "#"
+        | CodeBlockPartHashSpace -> "# "
+
+    let renderCodeBlockLine (line: CodeBlockLineNode): string =
+        match line with
+        | CodeBlockLineValue nodes ->
+            nodes
+            |> List.map renderCodeBlockPart
+            |> String.concat ""
+
+    lines
+    |> List.map renderCodeBlockLine
+    |> String.concat "\n"
+
 let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
     match paragraph with
     | Lines(line, subsequent) ->
@@ -479,6 +561,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
+    | CodeBlock(lines) ->
+        lines
+        |> renderCodeBlockLines
+        |> MarkdownParagraph.CodeBlock
     | Heading1(sentences) ->
         sentences
         |> List.map renderSentence
