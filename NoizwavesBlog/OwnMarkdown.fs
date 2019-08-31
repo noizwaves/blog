@@ -199,12 +199,12 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | T(HashSpace)
 // CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
 // CodeBlockLine      := CodeBlockPart+ (T)NewLine
-// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(HashSpace)
+// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace)
 // TripleBacktick     := T(Backtick) T(Backtick) T(Backtick)
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
 // ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
-// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(HashSpace)
+// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace)
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -229,6 +229,7 @@ type private SimpleCodeNode =
     | SimpleCodeCloseBracket
     | SimpleCodeUnderscore
     | SimpleCodeAsterisk
+    | SimpleCodeHash
     | SimpleCodeHashSpace
 type private ComplexCodeNode =
     | ComplexCodeSimpleValue of SimpleCodeNode list
@@ -329,6 +330,7 @@ let private simpleCodeParser: Parser<SimpleCodeNode> =
     |> orParse (map0Parse SimpleCodeCloseBracket closeBracketParser)
     |> orParse (map0Parse SimpleCodeUnderscore underscoreParser)
     |> orParse (map0Parse SimpleCodeAsterisk asteriskParser)
+    |> orParse (map0Parse SimpleCodeHash hashParser)
     |> orParse (map0Parse SimpleCodeHashSpace hashSpaceParser)
 
 let private simpleCodeValueParser: Parser<CodeNode> =
@@ -485,6 +487,7 @@ let private renderSimpleCode (node: SimpleCodeNode): string =
     | SimpleCodeCloseBracket -> "]"
     | SimpleCodeUnderscore -> "_"
     | SimpleCodeAsterisk -> "*"
+    | SimpleCodeHash -> "#"
     | SimpleCodeHashSpace -> "# "
 
 let private renderComplexCode (node: ComplexCodeNode): string =

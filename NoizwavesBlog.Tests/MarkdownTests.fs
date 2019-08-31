@@ -130,8 +130,8 @@ let ``Inline code span containing multiple literal backticks``() =
 
 [<Fact>]
 let ``Inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """`([_*])# `"""
+    let expected: Markdown = [ Paragraph [ Code "([_*#])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """`([_*#])# `"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
@@ -142,14 +142,14 @@ let ``Inline code span containing a syntactically valid link``() =
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters``() =
-    let expected: Markdown = [ Paragraph [ Code "([_*])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_*])# ``"""
+    let expected: Markdown = [ Paragraph [ Code "([_*#])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_*#])# ``"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
 let ``Double backticked inline code span containing multiple token characters and escaped backticks``() =
-    let expected: Markdown = [ Paragraph [ Code "([_`*`])# " ] ]
-    let actual: Markdown = Option.get <| ParseOwn """``([_`*`])# ``"""
+    let expected: Markdown = [ Paragraph [ Code "([_`*`#])# " ] ]
+    let actual: Markdown = Option.get <| ParseOwn """``([_`*`#])# ``"""
     Assert.Equal<Markdown>(expected, actual)
 
 // Heading 1
@@ -290,8 +290,6 @@ let ``Block of code containing symbols``() =
 ([_*])# #
 ```"""
     Assert.Equal<Markdown>(expected, actual)
-
-// TODO: add test for Hash token in inline elements
 
 //[<Fact>]
 //let ``A heading 1 whose contents starts with a hash``() =
