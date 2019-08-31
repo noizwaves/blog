@@ -206,3 +206,9 @@ let ``Heading 1 that includes sentence parts``() =
     let expected: Markdown = [ Heading1 [ Emphasized "foo"; Span " "; Bolded "bar"; Span " baz # h1 "; Code "Qux"; InlineLink("quuz", "quux") ] ]
     let actual: Markdown = Option.get <| ParseOwn "# _foo_ **bar** baz # h1 `Qux`[quux](quuz)"
     Assert.Equal<Markdown>(expected, actual)
+
+//[<Fact>]
+//let ``An element whose inner text that starts with a Heading 1``() =
+//    let expected: Markdown = [ Paragraph [ Bolded " # foo" ] ]
+//    let actual: Markdown = Option.get <| ParseOwn "** # foo**"
+//    Assert.Equal<Markdown>(expected, actual)
