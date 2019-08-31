@@ -366,6 +366,36 @@ let ``Quote block containing token characters``() =
     let actual: Markdown = Option.get <| ParseOwn "> ([_*])`# > #"
     Assert.Equal<Markdown>(expected, actual)
 
+// Ordered list
+
+[<Fact>]
+let ``Ordered list with one item``() =
+    let expected: Markdown = [ OrderedList [ ListItem [ Span "foo" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn "1.  foo"
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Ordered list with many items``() =
+    let expected: Markdown = [ OrderedList [ ListItem [ Span "foo" ]; ListItem [ Span "bar" ]; ListItem [ Span "baz" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn """1.  foo
+1.  bar
+1.  baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Ordered list with trailing new lines``() =
+    let expected: Markdown = [ OrderedList [ ListItem [ Span "foo" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn """1.  foo
+
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Ordered list with formatted text``() =
+    let expected: Markdown = [ OrderedList [ ListItem [ Span "foo "; Emphasized "bar"; Bolded "baz"; Code "quz" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn "1.  foo _bar_**baz**`quz`"
+    Assert.Equal<Markdown>(expected, actual)
+
 //[<Fact>]
 //let ``A heading 1 whose contents starts with a hash``() =
 //    let expected: Markdown = [ Heading1 [ Span "#foo" ] ]
