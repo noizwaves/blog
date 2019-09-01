@@ -3,7 +3,7 @@
     <TargetFramework>netcoreapp2.2</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\NoizwavesBlog\social-media.fsproj" />
+    <ProjectReference Include="..\NoizwavesBlog\NoizwavesBlog.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MarkdownTests.fs" />
