@@ -9,6 +9,7 @@ type MarkdownElement =
     | Bolded of string
     | InlineLink of string * string
     | Code of string
+    | Image of string * string
 
 type MarkdownListItem =
     | ListItem of MarkdownElement list
@@ -41,6 +42,7 @@ type private Token =
     | OpenParentheses
     | CloseParentheses
     | Backtick
+    | Bang
     | Hash
     | HashSpace
     | GreaterThanSpace
@@ -59,6 +61,7 @@ let private tokenLength (t: Token): int =
     | OpenParentheses -> 1
     | CloseParentheses -> 1
     | Backtick -> 1
+    | Bang -> 1
     | Hash -> 1
     | HashSpace -> 2
     | GreaterThanSpace -> 2
@@ -103,6 +106,8 @@ let private underscoreScanner: Scanner = charScanner '_' Underscore
 
 let private asteriskScanner: Scanner = charScanner '*' Asterisk
 
+let private bangScanner: Scanner = charScanner '!' Bang
+
 let private bracketScanner: Scanner =
     charScanner '[' OpenBracket
     |> thenScan <| charScanner ']' CloseBracket
@@ -139,6 +144,7 @@ let private tokenScanner: Scanner =
     |> thenScan greaterThanSpaceScanner
     |> thenScan oneDotSpaceSpaceScanner
     |> thenScan dashSpaceSpaceSpaceScanner
+    |> thenScan bangScanner
     |> thenScan textScanner
 
 let rec private tokenize (s: RawMarkdownText): Tokens =
@@ -218,35 +224,40 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // OListItemLine      := T(OneDotSpaceSpace) Sentence+
 // UListItemLine      := T(DashSpaceSpaceSpace) Sentence+
 // QuoteBlockLine     := T(GreaterThanSpace) QuoteBlockPart+
-// QuoteBlockPart     := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(Backtick) | T(GreaterThanSpace)
+// QuoteBlockPart     := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(Backtick) | T(GreaterThanSpace) | T(Bang)
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
 // Line               := SentenceStart Sentence*
 // SentenceStart      := EmphasizedText
 //                     | BoldedText
 //                     | Text
+//                     | Image
 //                     | InlineLink
 //                     | Code
 //                     | T(OpenParentheses)
 //                     | T(CloseParentheses)
 //                     | T(Asterisk)
+//                     | T(Bang)
 // Sentence           := EmphasizedText
 //                     | BoldedText
 //                     | Text
+//                     | Image
 //                     | InlineLink
 //                     | Code
 //                     | T(HashSpace)
 //                     | T(OpenParentheses)
 //                     | T(CloseParentheses)
 //                     | T(Asterisk)
+//                     | T(Bang)
 // CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
 //                     | TripleBacktick Text T(NewLine) CodeBlockLine+ TripleBacktick
 // CodeBlockLine      := CodeBlockPart+ (T)NewLine
-// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace)
+// CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace) | T(Bang)
 // TripleBacktick     := T(Backtick) T(Backtick) T(Backtick)
 // Code               := T(Backtick) SimpleCode+ T(Backtick)
 //                     | T(Backtick) T(Backtick) ComplexCode T(Backtick) T(Backtick)
 // ComplexCode        := SimpleCode+ (T(Backtick) SimpleCode+)*
-// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace)
+// SimpleCode         := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace) | T(Bang)
+// Image              := T(Bang) T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // InlineLink         := T(OpenBracket) T(Text) T(CloseBracket) T(OpenParentheses) T(Text) T(CloseParentheses)
 // EmphasizedText     := T(Underscore) T(Text) T(Underscore)
 // BoldedText         := T(Asterisk) T(Asterisk) T(Text) T(Asterisk) T(Asterisk)
@@ -263,6 +274,7 @@ type private TextNode = TextValue of string
 type private EmphasizedTextNode = EmphasizedTextValue of string
 type private BoldedTextNode = BoldedTextValue of string
 type private InlineLinkNode = InlineLinkValue of string * string
+type private ImageNode = ImageValue of string * string
 
 type private SimpleCodeNode =
     | SimpleCodeTextValue of TextNode
@@ -275,6 +287,7 @@ type private SimpleCodeNode =
     | SimpleCodeHash
     | SimpleCodeHashSpace
     | SimpleCodeGreaterThanSpace
+    | SimpleCodeBang
 type private ComplexCodeNode =
     | ComplexCodeSimpleValue of SimpleCodeNode list
     | ComplexCodeBacktickValue
@@ -288,10 +301,12 @@ type private SentenceNode =
     | BoldedText of BoldedTextNode
     | InlineLink of InlineLinkNode
     | Code of CodeNode
+    | Image of ImageNode
     | HashSpace // BUG: do we need this?
     | OpenParentheses
     | CloseParentheses
     | Asterisk
+    | Bang
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 
@@ -306,6 +321,7 @@ type private CodeBlockPartNode =
     | CodeBlockPartHash
     | CodeBlockPartHashSpace
     | CodeBlockPartGreaterThanSpace
+    | CodeBlockPartBang
 type private CodeBlockLineNode =
     | CodeBlockLineValue of CodeBlockPartNode list
 
@@ -321,6 +337,7 @@ type private QuoteBlockPartNode =
     | QuoteBlockPartHashSpace
     | QuoteBlockPartBacktick
     | QuoteBlockPartGreaterThanSpace
+    | QuoteBlockPartBang
 type private QuoteBlockLineNode =
     | QuoteBlockLineValue of QuoteBlockPartNode list
 
@@ -365,6 +382,8 @@ let private newLineParser: Parser<unit> = singleTokenParser NewLine
 
 let private hashParser: Parser<unit> = singleTokenParser Token.Hash
 
+let private bangParser: Parser<unit> = singleTokenParser Token.Bang
+
 let private hashSpaceParser: Parser<unit> = singleTokenParser Token.HashSpace
 
 let private greaterThanSpaceParser: Parser<unit> = singleTokenParser Token.GreaterThanSpace
@@ -395,6 +414,12 @@ let private inlineLinkParser (tokens: Tokens): ParseResult<InlineLinkNode> =
         (InlineLinkValue(url, name), 6) |> Some
     | _ -> None
 
+let private imageParser (tokens: Tokens): ParseResult<ImageNode> =
+    match tokens with
+    | Token.Bang :: Token.OpenBracket :: Token.Text alt :: Token.CloseBracket :: Token.OpenParentheses :: Token.Text url :: Token.CloseParentheses :: _ ->
+        (ImageValue(url, alt), 7) |> Some
+    | _ -> None
+
 let private simpleCodeParser: Parser<SimpleCodeNode> =
     textParser |> mapParse SimpleCodeTextValue
     |> orParse (map0Parse SimpleCodeOpenParentheses openParenthesesParser)
@@ -406,6 +431,7 @@ let private simpleCodeParser: Parser<SimpleCodeNode> =
     |> orParse (map0Parse SimpleCodeHash hashParser)
     |> orParse (map0Parse SimpleCodeHashSpace hashSpaceParser)
     |> orParse (map0Parse SimpleCodeGreaterThanSpace greaterThanSpaceParser)
+    |> orParse (map0Parse SimpleCodeBang bangParser)
 
 let private simpleCodeValueParser: Parser<CodeNode> =
     backtickParser
@@ -444,9 +470,11 @@ let private codeParser: Parser<CodeNode> =
 let private sentenceParser: Parser<SentenceNode> =
     map0Parse SentenceNode.Asterisk asteriskParser
     |> orParse <| map0Parse HashSpace hashSpaceParser
+    |> orParse <| map0Parse SentenceNode.Bang bangParser
     |> orParse <| map0Parse SentenceNode.OpenParentheses openParenthesesParser
     |> orParse <| map0Parse SentenceNode.CloseParentheses closeParenthesesParser
     |> orParse <| mapParse Text textParser
+    |> orParse <| mapParse Image imageParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
     |> orParse <| mapParse BoldedText boldedTextParser
@@ -454,9 +482,11 @@ let private sentenceParser: Parser<SentenceNode> =
 
 let private sentenceStartParser: Parser<SentenceNode> =
     map0Parse SentenceNode.Asterisk asteriskParser
+    |> orParse <| map0Parse SentenceNode.Bang bangParser
     |> orParse <| map0Parse SentenceNode.OpenParentheses openParenthesesParser
     |> orParse <| map0Parse SentenceNode.CloseParentheses closeParenthesesParser
     |> orParse <| mapParse Text textParser
+    |> orParse <| mapParse Image imageParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
     |> orParse <| mapParse BoldedText boldedTextParser
@@ -522,6 +552,7 @@ let private codeBlockPartParser: Parser<CodeBlockPartNode> =
     |> orParse (hashParser |> map0Parse CodeBlockPartHash)
     |> orParse (hashSpaceParser |> map0Parse CodeBlockPartHashSpace)
     |> orParse (greaterThanSpaceParser |> map0Parse CodeBlockPartGreaterThanSpace)
+    |> orParse (bangParser |> map0Parse CodeBlockPartBang)
 
 let private codeBlockLineParser: Parser<CodeBlockLineNode> =
     matchPlus codeBlockPartParser
@@ -572,6 +603,7 @@ let private quoteBlockParser: Parser<ParagraphNode> =
         |> orParse (hashSpaceParser |> map0Parse QuoteBlockPartHashSpace)
         |> orParse (backtickParser |> map0Parse QuoteBlockPartBacktick)
         |> orParse (greaterThanSpaceParser |> map0Parse QuoteBlockPartGreaterThanSpace)
+        |> orParse (bangParser |> map0Parse QuoteBlockPartBang)
 
     let quoteBlockLineParser: Parser<QuoteBlockLineNode> =
         greaterThanSpaceParser
@@ -672,6 +704,7 @@ let private renderSimpleCode (node: SimpleCodeNode): string =
     | SimpleCodeHash -> "#"
     | SimpleCodeHashSpace -> "# "
     | SimpleCodeGreaterThanSpace -> "> "
+    | SimpleCodeBang -> "!"
 
 let private renderComplexCode (node: ComplexCodeNode): string =
     match node with
@@ -700,17 +733,19 @@ let private renderSentence (sentence: SentenceNode): MarkdownElement =
     | EmphasizedText(EmphasizedTextValue value) -> Emphasized value
     | BoldedText(BoldedTextValue value) -> Bolded value
     | InlineLink(InlineLinkValue(url, name)) -> MarkdownElement.InlineLink(url, name)
+    | Image(ImageValue(url, alt)) -> MarkdownElement.Image(url, alt)
     | Code code -> renderCode code
     | HashSpace -> Span "# "
     | OpenParentheses -> Span "("
     | CloseParentheses -> Span ")"
     | Asterisk -> Span "*"
+    | Bang -> Span "!"
 
 let private renderSentences (sentences: SentenceNode list): MarkdownElement list =
     let collapseSpansReversed elements element =
         match (elements, element) with
         | ((Span head) :: rest, (Span next)) ->
-            Span (head + next) :: rest
+            Span(head + next) :: rest
         | rest, next ->
             next :: rest
 
@@ -745,6 +780,7 @@ let private renderQuoteBlockLines (nodes: QuoteBlockLineNode list): string =
         | QuoteBlockPartHashSpace -> "# "
         | QuoteBlockPartBacktick -> "`"
         | QuoteBlockPartGreaterThanSpace -> "> "
+        | QuoteBlockPartBang -> "!"
 
     let renderQuoteBlockLine (node: QuoteBlockLineNode): string =
         match node with
@@ -770,6 +806,7 @@ let private renderCodeBlockLines (lines: CodeBlockLineNode list): string =
         | CodeBlockPartHash -> "#"
         | CodeBlockPartHashSpace -> "# "
         | CodeBlockPartGreaterThanSpace -> "> "
+        | CodeBlockPartBang -> "!"
 
     let renderCodeBlockLine (line: CodeBlockLineNode): string =
         match line with
