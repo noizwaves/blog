@@ -13,6 +13,8 @@ type MarkdownElement =
 type MarkdownListItem =
     | ListItem of MarkdownElement list
 
+type MarkdownCodeLanguage = string option
+
 type MarkdownParagraph =
     | Paragraph of MarkdownElement list
     | Heading1 of MarkdownElement list
@@ -20,7 +22,7 @@ type MarkdownParagraph =
     | Heading3 of MarkdownElement list
     | OrderedList of MarkdownListItem list
     | UnorderedList of MarkdownListItem list
-    | CodeBlock of string
+    | CodeBlock of string * MarkdownCodeLanguage
     | QuoteBlock of string
 
 type Markdown = MarkdownParagraph list
@@ -231,6 +233,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | Code
 //                     | T(HashSpace)
 // CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
+//                     | TripleBacktick Text T(NewLine) CodeBlockLine+ TripleBacktick
 // CodeBlockLine      := CodeBlockPart+ (T)NewLine
 // CodeBlockPart      := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(GreaterThanSpace)
 // TripleBacktick     := T(Backtick) T(Backtick) T(Backtick)
@@ -318,7 +321,7 @@ type private UnorderedListLineNode =
 
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
-    | CodeBlock of CodeBlockLineNode list
+    | CodeBlock of CodeBlockLineNode list * TextNode option
     | QuoteBlock of QuoteBlockLineNode list
     | Heading1 of SentenceNode list
     | Heading2 of SentenceNode list
@@ -516,13 +519,25 @@ let private codeBlockParser: Parser<ParagraphNode> =
         |> andParse backtickParser
         |> andParse backtickParser
 
+    let hint =
+        textParser
+        |> andParse newLineParser
+        |> keepFirstParse
+        |> mapParse Some
+
+    let maybeHintNewLine =
+        hint
+        |> orParse (newLineParser |> map0Parse None)
+
     let content: Parser<CodeBlockLineNode list> = matchPlus codeBlockLineParser
 
-    tripleBacktick |> andParse newLineParser
-    |> andParse content
+    tripleBacktick
+    |> andParse maybeHintNewLine
     |> keepSecondParse
+    |> andParse content
     |> andParse tripleBacktick
     |> keepFirstParse
+    |> mapParse (fun (h, c) -> (c, h))
     |> mapParse CodeBlock
     |> andParse (matchStar newLineParser)
     |> keepFirstParse
@@ -757,9 +772,15 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
 
         MarkdownParagraph.Paragraph spans
-    | CodeBlock(lines) ->
+    | CodeBlock(lines, languageNode) ->
+        let language =
+            match languageNode with
+            | Some(TextValue language) -> Some language
+            | _ -> None
+
         lines
         |> renderCodeBlockLines
+        |> fun code -> (code, language)
         |> MarkdownParagraph.CodeBlock
     | QuoteBlock(lines) ->
         lines

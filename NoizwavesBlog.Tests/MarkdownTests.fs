@@ -301,7 +301,7 @@ let ``Heading 3 that includes sentence parts``() =
 
 [<Fact>]
 let ``Single line block of code``() =
-    let expected: Markdown = [ CodeBlock "foo" ]
+    let expected: Markdown = [ CodeBlock ("foo", None) ]
     let actual: Markdown = Option.get <| ParseOwn """```
 foo
 ```"""
@@ -309,7 +309,7 @@ foo
 
 [<Fact>]
 let ``Multiline block of code``() =
-    let expected: Markdown = [ CodeBlock "foo\nbar\nbaz" ]
+    let expected: Markdown = [ CodeBlock ("foo\nbar\nbaz", None) ]
     let actual: Markdown = Option.get <| ParseOwn """```
 foo
 bar
@@ -319,7 +319,7 @@ baz
 
 [<Fact>]
 let ``Block of code with trailing new lines``() =
-    let expected: Markdown = [ CodeBlock "foo" ]
+    let expected: Markdown = [ CodeBlock ("foo", None) ]
     let actual: Markdown = Option.get <| ParseOwn """```
 foo
 ```
@@ -329,9 +329,17 @@ foo
 
 [<Fact>]
 let ``Block of code containing token characters``() =
-    let expected: Markdown = [ CodeBlock "([_*])# > #" ]
+    let expected: Markdown = [ CodeBlock ("([_*])# > #", None) ]
     let actual: Markdown = Option.get <| ParseOwn """```
 ([_*])# > #
+```"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Block of code with language hint``() =
+    let expected: Markdown = [ CodeBlock ("foo", Some "javascript") ]
+    let actual: Markdown = Option.get <| ParseOwn """```javascript
+foo
 ```"""
     Assert.Equal<Markdown>(expected, actual)
 
