@@ -1,5 +1,5 @@
 ---
-title:  "Fixing Slow Spring Boot Startup"
+title:  Fixing Slow Spring Boot Startup
 date:   2017-09-02 17:56:00 -0600
 ---
 

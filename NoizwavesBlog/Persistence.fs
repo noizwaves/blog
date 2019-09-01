@@ -11,7 +11,7 @@ let private shallowYamlDecode (yml : string) : ShallowYaml =
     |> List.map (fun s ->
            let index = s.IndexOf(":")
            let key = s.Substring(0, index).Trim()
-           let value = s.Substring(index + 1).Trim().Trim('\"')
+           let value = s.Substring(index + 1).Trim()
            (key, value))
     |> Map.ofList
 

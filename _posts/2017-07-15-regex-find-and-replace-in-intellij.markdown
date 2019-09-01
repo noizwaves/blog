@@ -1,5 +1,5 @@
 ---
-title:  "Regex Find and Replace in IntelliJ"
+title:  Regex Find and Replace in IntelliJ
 date:   2017-07-15 12:01:43 -0600
 ---
 

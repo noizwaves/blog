@@ -1,5 +1,5 @@
 ---
-title:  "Launch Spring Boot Application during Fluentlenium test"
+title:  Launch Spring Boot Application during Fluentlenium test
 date:   2017-08-24 13:45:21 -0600
 ---
 
