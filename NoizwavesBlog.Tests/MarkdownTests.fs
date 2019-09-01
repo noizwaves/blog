@@ -52,6 +52,20 @@ Baz"""
     Assert.Equal<Markdown>(expected, actual)
 
 [<Fact>]
+let ``Parentheses wrapped text is treated as text``() =
+    let expected: Markdown = [ Paragraph [ Span "(foo)" ] ]
+    let actual: Markdown = Option.get <| ParseOwn "(foo)"
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Paragraph text with asterisk is treated as text``() =
+    let expected: Markdown = [ Paragraph [ Span "*foo" ] ]
+    let actual: Markdown = Option.get <| ParseOwn "*foo"
+    Assert.Equal<Markdown>(expected, actual)
+
+// Emphasized text
+
+[<Fact>]
 let ``Emphasized text in a paragraph``() =
     let expected: Markdown =
         [ Paragraph [ Emphasized "Foo" ] ]
@@ -92,11 +106,15 @@ Baz _Qux_
 **Quux** Quuz _Corge_ __Grault__"""
     Assert.Equal<Markdown>(expected, actual)
 
+// Inline links
+
 [<Fact>]
 let ``Inline link in a paragraph``() =
     let expected: Markdown = [ Paragraph [ InlineLink("www.example.com", "foobar") ] ]
     let actual: Markdown = Option.get <| ParseOwn """[foobar](www.example.com)"""
     Assert.Equal<Markdown>(expected, actual)
+
+// Inline code elements
 
 [<Fact>]
 let ``Inline code span using single backticks``() =

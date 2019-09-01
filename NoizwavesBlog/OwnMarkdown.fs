@@ -226,12 +226,18 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | Text
 //                     | InlineLink
 //                     | Code
+//                     | T(OpenParentheses)
+//                     | T(CloseParentheses)
+//                     | T(Asterisk)
 // Sentence           := EmphasizedText
 //                     | BoldedText
 //                     | Text
 //                     | InlineLink
 //                     | Code
 //                     | T(HashSpace)
+//                     | T(OpenParentheses)
+//                     | T(CloseParentheses)
+//                     | T(Asterisk)
 // CodeBlock          := TripleBacktick T(NewLine) CodeBlockLine+ TripleBacktick
 //                     | TripleBacktick Text T(NewLine) CodeBlockLine+ TripleBacktick
 // CodeBlockLine      := CodeBlockPart+ (T)NewLine
@@ -249,6 +255,7 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 // Known grammar issues
 // - non-terminating paragraphs must have a T(NewLine)
 //   - * should be + for these
+// - allow all token symbols to exist in sentences, cleaner handling of this across shared grammar
 
 // AST
 
@@ -282,6 +289,9 @@ type private SentenceNode =
     | InlineLink of InlineLinkNode
     | Code of CodeNode
     | HashSpace // BUG: do we need this?
+    | OpenParentheses
+    | CloseParentheses
+    | Asterisk
 type private LineNode = Sentence of SentenceNode list
 type private SubsequentLineNode = Sentence of SentenceNode list
 
@@ -339,9 +349,9 @@ let private singleTokenParser (target: Token) (tokens: Tokens): ParseResult<unit
 
 let private backtickParser: Parser<unit> = singleTokenParser Backtick
 
-let private openParenthesesParser: Parser<unit> = singleTokenParser OpenParentheses
+let private openParenthesesParser: Parser<unit> = singleTokenParser Token.OpenParentheses
 
-let private closeParenthesesParser: Parser<unit> = singleTokenParser CloseParentheses
+let private closeParenthesesParser: Parser<unit> = singleTokenParser Token.CloseParentheses
 
 let private openBracketParser: Parser<unit> = singleTokenParser OpenBracket
 
@@ -349,7 +359,7 @@ let private closeBracketParser: Parser<unit> = singleTokenParser CloseBracket
 
 let private underscoreParser: Parser<unit> = singleTokenParser Underscore
 
-let private asteriskParser: Parser<unit> = singleTokenParser Asterisk
+let private asteriskParser: Parser<unit> = singleTokenParser Token.Asterisk
 
 let private newLineParser: Parser<unit> = singleTokenParser NewLine
 
@@ -432,19 +442,25 @@ let private codeParser: Parser<CodeNode> =
     |> orParse complexCodeParser
 
 let private sentenceParser: Parser<SentenceNode> =
-    mapParse EmphasizedText emphasizedTextParser
-    |> orParse <| mapParse BoldedText boldedTextParser
+    map0Parse SentenceNode.Asterisk asteriskParser
+    |> orParse <| map0Parse HashSpace hashSpaceParser
+    |> orParse <| map0Parse SentenceNode.OpenParentheses openParenthesesParser
+    |> orParse <| map0Parse SentenceNode.CloseParentheses closeParenthesesParser
+    |> orParse <| mapParse Text textParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
-    |> orParse <| map0Parse HashSpace hashSpaceParser
-    |> orParse <| mapParse Text textParser
+    |> orParse <| mapParse BoldedText boldedTextParser
+    |> orParse <| mapParse EmphasizedText emphasizedTextParser
 
 let private sentenceStartParser: Parser<SentenceNode> =
-    mapParse EmphasizedText emphasizedTextParser
-    |> orParse <| mapParse BoldedText boldedTextParser
+    map0Parse SentenceNode.Asterisk asteriskParser
+    |> orParse <| map0Parse SentenceNode.OpenParentheses openParenthesesParser
+    |> orParse <| map0Parse SentenceNode.CloseParentheses closeParenthesesParser
+    |> orParse <| mapParse Text textParser
     |> orParse <| mapParse InlineLink inlineLinkParser
     |> orParse <| mapParse Code codeParser
-    |> orParse <| mapParse Text textParser
+    |> orParse <| mapParse BoldedText boldedTextParser
+    |> orParse <| mapParse EmphasizedText emphasizedTextParser
 
 let private lineParser: Parser<LineNode> =
     sentenceStartParser
@@ -686,18 +702,34 @@ let private renderSentence (sentence: SentenceNode): MarkdownElement =
     | InlineLink(InlineLinkValue(url, name)) -> MarkdownElement.InlineLink(url, name)
     | Code code -> renderCode code
     | HashSpace -> Span "# "
+    | OpenParentheses -> Span "("
+    | CloseParentheses -> Span ")"
+    | Asterisk -> Span "*"
+
+let private renderSentences (sentences: SentenceNode list): MarkdownElement list =
+    let collapseSpansReversed elements element =
+        match (elements, element) with
+        | ((Span head) :: rest, (Span next)) ->
+            Span (head + next) :: rest
+        | rest, next ->
+            next :: rest
+
+    sentences
+    |> List.map renderSentence
+    |> List.fold collapseSpansReversed []
+    |> List.rev
 
 let private renderLine (line: LineNode): MarkdownElement list =
     match line with
     | LineNode.Sentence sentences ->
         sentences
-        |> List.map renderSentence
+        |> renderSentences
 
 let private renderSubsequentLine (line: SubsequentLineNode): MarkdownElement list =
     match line with
     | SubsequentLineNode.Sentence sentences ->
         sentences
-        |> List.map renderSentence
+        |> renderSentences
 
 let private renderQuoteBlockLines (nodes: QuoteBlockLineNode list): string =
     let renderQuoteBlockPart (node: QuoteBlockPartNode): string =
@@ -754,14 +786,14 @@ let private renderOrderedListLine (line: OrderedListLineNode): MarkdownListItem 
     match line with
         | OrderedListLineValue parts ->
             parts
-            |> List.map renderSentence
+            |> renderSentences
             |> MarkdownListItem.ListItem
 
 let private renderUnorderedListLine (line: UnorderedListLineNode): MarkdownListItem =
     match line with
         | UnorderedListLineValue parts ->
             parts
-            |> List.map renderSentence
+            |> renderSentences
             |> MarkdownListItem.ListItem
 
 let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
@@ -788,15 +820,15 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         |> MarkdownParagraph.QuoteBlock
     | Heading1(sentences) ->
         sentences
-        |> List.map renderSentence
+        |> renderSentences
         |> MarkdownParagraph.Heading1
     | Heading2(sentences) ->
         sentences
-        |> List.map renderSentence
+        |> renderSentences
         |> MarkdownParagraph.Heading2
     | Heading3(sentences) ->
         sentences
-        |> List.map renderSentence
+        |> renderSentences
         |> MarkdownParagraph.Heading3
     | OrderedList(lines) ->
         lines
