@@ -9,15 +9,14 @@
   <ItemGroup>
     <Compile Include="Domain.fs" />
     <Compile Include="Persistence.fs" />
-    <Compile Include="Markdown.fs" />
     <Compile Include="OwnMarkdown.fs" />
+    <Compile Include="Markdown.fs" />
     <Compile Include="Html.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotLiquid" Version="2.0.298" />
-    <PackageReference Include="FSharp.Formatting" Version="2.14.4" />
     <PackageReference Include="Suave" Version="2.5.3" />
     <PackageReference Include="Suave.DotLiquid" Version="2.5.3" />
   </ItemGroup>
