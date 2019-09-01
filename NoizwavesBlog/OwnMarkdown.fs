@@ -19,6 +19,7 @@ type MarkdownParagraph =
     | Heading2 of MarkdownElement list
     | Heading3 of MarkdownElement list
     | OrderedList of MarkdownListItem list
+    | UnorderedList of MarkdownListItem list
     | CodeBlock of string
     | QuoteBlock of string
 
@@ -42,6 +43,7 @@ type private Token =
     | HashSpace
     | GreaterThanSpace
     | OneDotSpaceSpace
+    | DashSpaceSpaceSpace
     | EOF
 
 let private tokenLength (t: Token): int =
@@ -59,6 +61,7 @@ let private tokenLength (t: Token): int =
     | HashSpace -> 2
     | GreaterThanSpace -> 2
     | OneDotSpaceSpace -> 4
+    | DashSpaceSpaceSpace -> 4
     | EOF -> 0
 
 // Scanner builders
@@ -117,6 +120,9 @@ let private greaterThanSpaceScanner (text: RawMarkdownText): ScanResult =
 let private oneDotSpaceSpaceScanner (text: RawMarkdownText): ScanResult =
     if text.StartsWith "1.  " then Some OneDotSpaceSpace else None
 
+let private dashSpaceSpaceSpaceScanner (text: RawMarkdownText): ScanResult =
+    if text.StartsWith "-   " then Some DashSpaceSpaceSpace else None
+
 let private hashScanner: Scanner = charScanner '#' Hash
 
 let private tokenScanner: Scanner =
@@ -130,6 +136,7 @@ let private tokenScanner: Scanner =
     |> thenScan hashScanner
     |> thenScan greaterThanSpaceScanner
     |> thenScan oneDotSpaceSpaceScanner
+    |> thenScan dashSpaceSpaceSpaceScanner
     |> thenScan textScanner
 
 let rec private tokenize (s: RawMarkdownText): Tokens =
@@ -204,8 +211,10 @@ let private map0Parse (value: 'a) (parser: Parser<unit>): Parser<'a> =
 //                     | T(HashSpace) Sentence* T(NewLine)*
 //                     | CodeBlock T(NewLine)*
 //                     | QuoteBlockLine (T(NewLine) QuoteBlockLine)* T(NewLine)*
-//                     | ListItemLine (T(NewLine) ListItemLine)* T(NewLine)*
-// ListItemLine       := T(OneDotSpaceSpace) Sentence+
+//                     | OListItemLine (T(NewLine) OListItemLine)* T(NewLine)*
+//                     | UListItemLine (T(NewLine) UListItemLine)* T(NewLine)*
+// OListItemLine      := T(OneDotSpaceSpace) Sentence+
+// UListItemLine      := T(DashSpaceSpaceSpace) Sentence+
 // QuoteBlockLine     := T(GreaterThanSpace) QuoteBlockPart+
 // QuoteBlockPart     := T(Text) | T(OpenParenthesis) | T(CloseParentheses) | T(OpenBracket) | T(CloseBracket) | T(Asterisk) | T(Underscore) | T(Hash) | T(HashSpace) | T(Backtick) | T(GreaterThanSpace)
 // SubsequentLine     := T(NewLine) SentenceStart Sentence*
@@ -304,6 +313,8 @@ type private QuoteBlockLineNode =
 
 type private OrderedListLineNode =
     | OrderedListLineValue of SentenceNode list
+type private UnorderedListLineNode =
+    | UnorderedListLineValue of SentenceNode list
 
 type private ParagraphNode =
     | Lines of LineNode * SubsequentLineNode list
@@ -313,6 +324,7 @@ type private ParagraphNode =
     | Heading2 of SentenceNode list
     | Heading3 of SentenceNode list
     | OrderedList of OrderedListLineNode list
+    | UnorderedList of UnorderedListLineNode list
 type private BodyNode = Paragraphs of ParagraphNode list
 
 // Parsers
@@ -569,6 +581,27 @@ let private orderedListParser: Parser<ParagraphNode> =
     |> andParse (matchStar newLineParser)
     |> keepFirstParse
 
+let private unorderedListParser: Parser<ParagraphNode> =
+    let dashThreeSpaces = singleTokenParser Token.DashSpaceSpaceSpace
+
+    let lineParser =
+        dashThreeSpaces
+        |> andParse (matchStar sentenceParser)
+        |> keepSecondParse
+        |> mapParse UnorderedListLineValue
+
+    let subsequent =
+        newLineParser
+        |> andParse lineParser
+        |> keepSecondParse
+
+    lineParser
+    |> andParse (matchStar subsequent)
+    |> mapParse (fun (n, nn) -> n :: nn)
+    |> mapParse UnorderedList
+    |> andParse (matchStar newLineParser)
+    |> keepFirstParse
+
 let private paragraphNodeParser: Parser<ParagraphNode> =
     paragraphLinesParser
     |> orParse codeBlockParser
@@ -577,6 +610,7 @@ let private paragraphNodeParser: Parser<ParagraphNode> =
     |> orParse paragraphHeading2Parser
     |> orParse paragraphHeading1Parser
     |> orParse orderedListParser
+    |> orParse unorderedListParser
 
 let private bodyNodeParser: Parser<BodyNode> =
     matchStar paragraphNodeParser
@@ -708,6 +742,13 @@ let private renderOrderedListLine (line: OrderedListLineNode): MarkdownListItem 
             |> List.map renderSentence
             |> MarkdownListItem.ListItem
 
+let private renderUnorderedListLine (line: UnorderedListLineNode): MarkdownListItem =
+    match line with
+        | UnorderedListLineValue parts ->
+            parts
+            |> List.map renderSentence
+            |> MarkdownListItem.ListItem
+
 let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
     match paragraph with
     | Lines(line, subsequent) ->
@@ -740,6 +781,10 @@ let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
         lines
         |> List.map renderOrderedListLine
         |> MarkdownParagraph.OrderedList
+    | UnorderedList(lines) ->
+        lines
+        |> List.map renderUnorderedListLine
+        |> MarkdownParagraph.UnorderedList
 
 let private render (body: BodyNode): Markdown =
     match body with

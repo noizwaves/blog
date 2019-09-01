@@ -396,6 +396,36 @@ let ``Ordered list with formatted text``() =
     let actual: Markdown = Option.get <| ParseOwn "1.  foo _bar_**baz**`quz`"
     Assert.Equal<Markdown>(expected, actual)
 
+// Unordered list
+
+[<Fact>]
+let ``Unordered list with one item``() =
+    let expected: Markdown = [ UnorderedList [ ListItem [ Span "foo" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn "-   foo"
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Unordered list with many items``() =
+    let expected: Markdown = [ UnorderedList [ ListItem [ Span "foo" ]; ListItem [ Span "bar" ]; ListItem [ Span "baz" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn """-   foo
+-   bar
+-   baz"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Unordered list with trailing new lines``() =
+    let expected: Markdown = [ UnorderedList [ ListItem [ Span "foo" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn """-   foo
+
+"""
+    Assert.Equal<Markdown>(expected, actual)
+
+[<Fact>]
+let ``Unordered list with formatted text``() =
+    let expected: Markdown = [ UnorderedList [ ListItem [ Span "foo "; Emphasized "bar"; Bolded "baz"; Code "quz" ] ] ]
+    let actual: Markdown = Option.get <| ParseOwn "-   foo _bar_**baz**`quz`"
+    Assert.Equal<Markdown>(expected, actual)
+
 //[<Fact>]
 //let ``A heading 1 whose contents starts with a hash``() =
 //    let expected: Markdown = [ Heading1 [ Span "#foo" ] ]
