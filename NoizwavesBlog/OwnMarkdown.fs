@@ -16,11 +16,13 @@ type MarkdownListItem =
 
 type MarkdownCodeLanguage = string option
 
+type MarkdownLine = MarkdownElement list
+
 type MarkdownParagraph =
-    | Paragraph of MarkdownElement list
-    | Heading1 of MarkdownElement list
-    | Heading2 of MarkdownElement list
-    | Heading3 of MarkdownElement list
+    | Paragraph of MarkdownLine list
+    | Heading1 of MarkdownLine
+    | Heading2 of MarkdownLine
+    | Heading3 of MarkdownLine
     | OrderedList of MarkdownListItem list
     | UnorderedList of MarkdownListItem list
     | CodeBlock of string * MarkdownCodeLanguage
@@ -835,12 +837,9 @@ let private renderUnorderedListLine (line: UnorderedListLineNode): MarkdownListI
 
 let private renderParagraph (paragraph: ParagraphNode): MarkdownParagraph =
     match paragraph with
-    | Lines(line, subsequent) ->
-        let flatten = List.fold List.append []
-
-        let spans = renderLine line @ (flatten <| List.map renderSubsequentLine subsequent)
-
-        MarkdownParagraph.Paragraph spans
+    | Lines(first, subsequent) ->
+        let lines = renderLine first :: (subsequent |> List.map renderSubsequentLine)
+        MarkdownParagraph.Paragraph lines
     | CodeBlock(lines, languageNode) ->
         let language =
             match languageNode with
