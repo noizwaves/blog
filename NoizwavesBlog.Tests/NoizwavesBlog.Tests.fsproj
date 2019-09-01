@@ -6,7 +6,7 @@
     <ProjectReference Include="..\NoizwavesBlog\NoizwavesBlog.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MarkdownTests.fs" />
+    <Compile Include="OwnMarkdownTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FsUnit.xUnit" Version="3.4.1" />

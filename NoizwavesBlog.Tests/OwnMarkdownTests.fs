@@ -1,4 +1,4 @@
-module MarkdownTests
+module NoizwavesBlog.Tests.OwnMarkdownTests
 
 open Xunit
 open FsUnit.Xunit
