@@ -22,19 +22,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PostResources Include="_posts/**" />
+    <PostResources Include="../_posts/**" />
   </ItemGroup>
 
   <ItemGroup>
-    <PageResources Include="_pages/*" />
+    <PageResources Include="../_pages/*" />
   </ItemGroup>
 
   <ItemGroup>
-    <Templates Include="templates/**" />
+    <Templates Include="../templates/**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Publics Include="public/**" />
+    <Publics Include="../public/**" />
   </ItemGroup>
 
   <Target Name="CopyResources" AfterTargets="Publish">
