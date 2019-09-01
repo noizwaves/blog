@@ -30,17 +30,42 @@ jobs:
           command: |
             dotnet tool install fake-cli -g
       - run:
-          name: Target Pivotal Web Services
+          name: Build
+          command: /root/.dotnet/tools/fake build target Publish
+      - deploy:
+          name: Deploy to Pivotal Web Services
           command: |
             cf api https://api.run.pivotal.io
             cf auth "$CF_USER" "$CF_PASSWORD"
             cf target -o "$CF_ORG" -s "$CF_SPACE"
+            cf push -f manifest-staging.yml
+
+  deploy-production:
+    docker:
+      - image: mcr.microsoft.com/dotnet/core/sdk:2.2.401
+    steps:
+      - checkout
+      - run:
+          name: Install cf cli
+          command: |
+            curl -v -L -o cf-cli_amd64.deb 'https://cli.run.pivotal.io/stable?release=debian64&source=github'
+            dpkg -i cf-cli_amd64.deb
+            cf -v
+      - run:
+          name: Install FAKE
+          command: |
+            dotnet tool install fake-cli -g
       - run:
           name: Build
           command: /root/.dotnet/tools/fake build target Publish
       - deploy:
-          name: Deploy
-          command: cf push -f manifest-staging.yml
+          name: Deploy to Pivotal Web Services
+          command: |
+            cf api https://api.run.pivotal.io
+            cf auth "$CF_USER" "$CF_PASSWORD"
+            cf target -o "$CF_ORG" -s "$CF_SPACE"
+            cf push -f manifest.yml
+
 workflows:
   version: 2
   staging-workflow:
@@ -55,5 +80,19 @@ workflows:
             branches:
               only:
                 - develop
+          requires:
+            - build
+  production-workflow:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+      - deploy-production:
+          filters:
+            branches:
+              only:
+                - master
           requires:
             - build
