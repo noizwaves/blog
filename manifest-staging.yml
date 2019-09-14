@@ -8,3 +8,5 @@ applications:
   - dotnet_core_buildpack
   routes:
   - route: blog-noizwaves-io-staging.cfapps.io
+  env:
+    DRAFTS: true
