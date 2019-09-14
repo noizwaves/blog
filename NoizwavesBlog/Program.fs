@@ -15,7 +15,11 @@ let main _ =
         Environment.GetEnvironmentVariable "PORT"
         |> Parse.int32
         |> Choice.fold id (fun _ -> 8080)
-    
+
+    let showDrafts =
+        Environment.GetEnvironmentVariable "DRAFTS"
+        |> fun drafts -> drafts <> "" && drafts <> null
+
     let local = Suave.Http.HttpBinding.createSimple HTTP "0.0.0.0" port
     
     let config =
@@ -23,7 +27,9 @@ let main _ =
                              homeFolder = Some(Path.GetFullPath "./public") }
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
-    let posts = Persistence.loadPostsFromFolder "_posts"
+    let published = Persistence.loadPostsFromFolder "_posts"
+    let drafts = Persistence.loadDraftsFromFolder "_drafts"
+    let posts = if showDrafts then published @ drafts else published
     let fetchPosts = fun () -> posts
     let fetchPost = Persistence.findPostInList posts
     let pages = Persistence.loadPagesFromFolder "_pages"

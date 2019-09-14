@@ -63,6 +63,38 @@ let loadPostsFromFolder (folder : string) : BlogPost list =
            |> System.IO.File.ReadAllText
            |> fromRawString filename)
 
+
+let private draftFromRawString (path : string) (filename : string) (raw : string) : BlogPost =
+    let (frontMatter, body) = parseDelimitedFile raw
+    let title = Map.find "title" frontMatter
+    let name = filename
+
+    let date : DateTimeOffset =
+        System.IO.File.GetLastWriteTime(path)
+        |> fun d -> DateTimeOffset(d)
+
+    let slug =
+        { year = date.Year
+          month = date.Month
+          day = date.Day
+          name = name }
+
+    { slug = slug
+      title = title
+      createdAt = date
+      body = body }
+
+let loadDraftsFromFolder (folder : string) : BlogPost list =
+    folder
+    |> System.IO.Directory.GetFiles
+    |> Array.toList
+    |> List.filter (fun path -> not (path.EndsWith ".gitkeep"))
+    |> List.map (fun path ->
+           let filename = System.IO.Path.GetFileNameWithoutExtension path
+           path
+           |> System.IO.File.ReadAllText
+           |> draftFromRawString path filename)
+
 let private pageFromRaw (filename : string) (raw : string) : Page =
     let (frontMatter, body) = parseDelimitedFile raw
     let title = Map.find "title" frontMatter

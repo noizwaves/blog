@@ -26,3 +26,13 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
 1.  `fake build target Publish`
 1.  `cf push`
+
+
+## Features
+
+### Drafts
+
+Draft posts can be displayed by setting the `DRAFTS` environment variable to a non-empty value.
+
+To see drafts locally, run:
+1.  `DRAFTS=true dotnet run -p NoizwavesBlog`

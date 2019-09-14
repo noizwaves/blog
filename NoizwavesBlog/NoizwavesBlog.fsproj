@@ -30,6 +30,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <DraftResources Include="../_drafts/*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Templates Include="../templates/**" />
   </ItemGroup>
 
@@ -40,6 +44,7 @@
   <Target Name="CopyResources" AfterTargets="Publish">
     <Copy SourceFiles="@(PostResources)" DestinationFolder="$(PublishDir)/_posts" />
     <Copy SourceFiles="@(PageResources)" DestinationFolder="$(PublishDir)/_pages" />
+    <Copy SourceFiles="@(DraftResources)" DestinationFolder="$(PublishDir)/_drafts" />
     <Copy SourceFiles="@(Templates)" DestinationFolder="$(PublishDir)/templates" />
     <Copy SourceFiles="@(Publics)" DestinationFiles="@(Publics->'$(PublishDir)/public/%(RecursiveDir)%(Filename)%(Extension)')" />
 </Target>
