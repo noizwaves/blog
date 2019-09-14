@@ -6,9 +6,6 @@
     <ProjectReference Include="..\NoizwavesBlog\NoizwavesBlog.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OwnMarkdownTests.fs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="FsUnit.xUnit" Version="3.4.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
     <PackageReference Include="xunit" Version="2.4.1" />
