@@ -14,11 +14,11 @@ Almost embarrassingly slow.
 How slow?
 Start with an empty Spring Boot Web application with Spring Initializer.
 
-![Spring Initializer]({{ site.url }}/assets/slow-spring-boot-startup/spring-initializer.png)
+![Spring Initializer](/assets/slow-spring-boot-startup/spring-initializer.png)
 
 Now launch the server using `./gradlew bootRun` and take a look at that launch time.
 
-![Slow bootRun]({{ site.url }}/assets/slow-spring-boot-startup/bootRun-slow.png)
+![Slow bootRun](/assets/slow-spring-boot-startup/bootRun-slow.png)
 
 **12.184 seconds!!**
 To load nothing but framework.
@@ -29,7 +29,7 @@ It turns out as part of Spring Boot startup it makes several calls to `InetAddre
 [Antonio Troina](https://thoeni.io) released an awesome [post](https://thoeni.io/post/macos-sierra-java/) and [code sample](https://github.com/thoeni/inetTester) that highlights the issue.
 Running inetTester produced this output:
 
-![Slow inetTester]({{ site.url }}/assets/slow-spring-boot-startup/inetTester-slow.png)
+![Slow inetTester](/assets/slow-spring-boot-startup/inetTester-slow.png)
 
 The `InetAddress.getLocalHost().getHostName()` call took over 5 seconds.
 
@@ -39,15 +39,15 @@ A solution exists, and that is to explicitly add your hostname into the IPv4 and
 
 Before, My standard-ish `/etc/hosts` file used to look like this:
 
-![Slow etc hosts]({{ site.url }}/assets/slow-spring-boot-startup/etc-hosts-slow.png)
+![Slow etc hosts](/assets/slow-spring-boot-startup/etc-hosts-slow.png)
 
 Here is what my `/etc/hosts` looks like now:
 
-![Fast etc hosts]({{ site.url }}/assets/slow-spring-boot-startup/etc-hosts-fast.png)
+![Fast etc hosts](/assets/slow-spring-boot-startup/etc-hosts-fast.png)
 
 Now with this change (and no reboot or no terminal restarts), inetTester outputs this:
 
-![Fast inetTester]({{ site.url }}/assets/slow-spring-boot-startup/inetTester-fast.png)
+![Fast inetTester](/assets/slow-spring-boot-startup/inetTester-fast.png)
 
 **9 ms!**
 Down from 5011 ms.
@@ -55,7 +55,7 @@ Down from 5011 ms.
 What effect does this have on Spring Boot's startup time?
 Take a look for yourself.
 
-![Fast bootRun]({{ site.url }}/assets/slow-spring-boot-startup/bootRun-fast.png)
+![Fast bootRun](/assets/slow-spring-boot-startup/bootRun-fast.png)
 
 
 **2.264 seconds.**
