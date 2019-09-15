@@ -2,6 +2,7 @@
 layout: post
 title:  "Better HTML with CSS frameworks using SMACL"
 tags: css semantic framework SMACL
+date:   2018-03-31 11:16:00 -0600
 ---
 
 # Goals

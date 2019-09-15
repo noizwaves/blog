@@ -69,19 +69,20 @@ let private draftFromRawString (path : string) (filename : string) (raw : string
     let title = Map.find "title" frontMatter
     let name = filename
 
-    let date : DateTimeOffset =
-        System.IO.File.GetLastWriteTime(path)
-        |> fun d -> DateTimeOffset(d)
+    let createdAt : DateTimeOffset =
+        Map.tryFind "date" frontMatter
+        |> Option.bind parseFromLongString
+        |> Option.defaultWith (fun _ -> failwith "Unable to parse date from frontmatter")
 
     let slug =
-        { year = date.Year
-          month = date.Month
-          day = date.Day
+        { year = createdAt.Year
+          month = createdAt.Month
+          day = createdAt.Day
           name = name }
 
     { slug = slug
       title = title
-      createdAt = date
+      createdAt = createdAt
       body = body }
 
 let loadDraftsFromFolder (folder : string) : BlogPost list =
