@@ -22,11 +22,14 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
     -   on Linux via `sudo apt install libsass-dev`
     -   on macOS (probably) via `brew install libsass`
 
+## Tests
+
+1.  `dotnet test`
+
 ## Deploying
 
 1.  `fake build target Publish`
 1.  `cf push`
-
 
 ## Features
 
