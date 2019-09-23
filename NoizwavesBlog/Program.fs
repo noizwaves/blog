@@ -40,6 +40,7 @@ let main _ =
                  GET >=> pathScan "/%s/%s/%s/%s.html" (Html.handleBlogPost fetchPost pages)
                  GET >=> pathScan "/%s/%s/%s/%s" (Html.handleBlogPost fetchPost pages)
                  GET >=> pathScan "/pages/%s" (Html.handlePage fetchPage pages)
+                 GET >=> path "/feed.atom" >=> Atom.handleAtomFeed fetchPosts
                  GET >=> Files.browseHome
                  RequestErrors.NOT_FOUND "404" ]
     startWebServer config app

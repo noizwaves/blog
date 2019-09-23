@@ -11,11 +11,13 @@
     <Compile Include="Persistence.fs" />
     <Compile Include="Markdown.fs" />
     <Compile Include="Html.fs" />
+    <Compile Include="Atom.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="DotLiquid" Version="2.0.314" />
+    <PackageReference Include="FSharp.Data" Version="3.3.2" />
     <PackageReference Include="Markdig" Version="0.17.1" />
     <PackageReference Include="Suave" Version="2.5.5" />
     <PackageReference Include="Suave.DotLiquid" Version="2.5.5" />

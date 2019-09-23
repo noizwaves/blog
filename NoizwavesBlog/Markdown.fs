@@ -3,4 +3,7 @@ module NoizwavesBlog.Markdown
 open Markdig
 
 let convertToHtml (markdown: string): string =
-    Markdown.ToHtml(markdown)
+    markdown |> Markdown.ToHtml
+
+let convertToText (markdown: string): string =
+    markdown |> Markdown.ToPlainText
