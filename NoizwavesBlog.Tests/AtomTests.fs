@@ -47,7 +47,7 @@ let ``No posts``() =
     
     context.response
     |> expectContentType
-    |> should equal "application/xml+atom"
+    |> should equal "application/atom+xml"
 
     context.response
     |> expectBytes

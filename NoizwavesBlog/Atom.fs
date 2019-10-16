@@ -68,4 +68,4 @@ let handleAtomFeed (fetch : FetchPosts) : WebPart =
 %O
 """
     |> Successful.OK
-    >=> Writers.setMimeType "application/xml+atom"
+    >=> Writers.setMimeType "application/atom+xml"
