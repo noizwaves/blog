@@ -1,6 +1,6 @@
 ---
 title: Simple Git Branch Squashing
-date: 2019-10-17 17:44:00 -0400
+date: 2019-10-22 21:35:00 -0400
 ---
 
 ## The old way
