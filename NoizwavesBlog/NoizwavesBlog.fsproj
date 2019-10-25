@@ -12,6 +12,8 @@
     <Compile Include="Markdown.fs" />
     <Compile Include="Html.fs" />
     <Compile Include="Atom.fs" />
+    <Compile Include="StaticExport.fs" />
+    <Compile Include="WebServer.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

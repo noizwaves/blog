@@ -60,12 +60,17 @@ let private entriesToFeed (entries : AtomFeed.Entry list) : AtomFeed.Feed =
          "https://blog.noizwaves.io/",
          entries |> List.toArray)
 
-let handleAtomFeed (fetch : FetchPosts) : WebPart =
-    fetch ()
+// TODO: making this public is suboptimal?
+let sprintAtomFeed (posts: BlogPost list): string =
+    posts
     |> List.map postToEntry
     |> entriesToFeed
     |> sprintf """<?xml version="1.0" encoding="utf-8"?>
 %O
 """
+
+let handleAtomFeed (fetch : FetchPosts) : WebPart =
+    fetch ()
+    |> sprintAtomFeed
     |> Successful.OK
     >=> Writers.setMimeType "application/atom+xml"

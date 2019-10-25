@@ -7,3 +7,4 @@ public/static/app.css
 .ionide/
 .vscode/
 *.DotSettings.user
+output/

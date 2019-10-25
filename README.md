@@ -39,3 +39,12 @@ Draft posts can be displayed by setting the `DRAFTS` environment variable to a n
 
 To see drafts locally, run:
 1.  `DRAFTS=true dotnet run -p NoizwavesBlog`
+
+### Static Site generation
+
+In addition to running as a web server, a complete version of the blog can be generated.
+
+1. `dotnet run -p NoizwavesBlog -- static`
+1. `cd output`
+1. `python -m SimpleHTTPServer`
+1. `open http://localhost:8000`

@@ -41,7 +41,8 @@ let private toPageLinks (pages : Page list) : PageLinkDto list =
         |> List.map (fun p -> { title = p.title; url = sprintf "/pages/%s" p.path })
         |> List.sortBy (fun link -> link.title)
 
-let private toDto (allPages : Page list) (post : BlogPost) : PostHtmlDto =
+// TODO: making this public is suboptimal
+let toDto (allPages : Page list) (post : BlogPost) : PostHtmlDto =
     { title = post.title
       navigablePages = allPages |> toPageLinks
       createdAt = post.createdAt |> formatCreateDate
@@ -52,10 +53,22 @@ let private toItemDto (post : BlogPost) : PostItemHtmlDto =
       createdAt = post.createdAt |> formatCreateDate
       link = post |> derivePostUrl }
 
-let private toPageDto (allPages : Page list) (page : Page) : PageHtmlDto =
+// TODO: making this public is suboptimal
+let toPageDto (allPages : Page list) (page : Page) : PageHtmlDto =
     { title = page.title
       navigablePages = allPages |> toPageLinks
       bodyHtml = page.body |> convertToHtml }
+
+// TODO: making this public is suboptimal
+let toPostsDto (allPages: Page list) (allPosts: BlogPost list) : PostsHtmlDto =
+    let posts =
+        allPosts
+        |> List.sortByDescending (fun p -> p.createdAt)
+        |> List.map toItemDto
+        
+    { title = "Adam Neumann's blog"
+      navigablePages = allPages |> toPageLinks
+      posts = posts }
 
 // Flows
 let handleBlogPost (fetch : FetchPost) (allPages : Page list) (year, month, day, titleSlug) : WebPart =
@@ -69,15 +82,10 @@ let handleBlogPost (fetch : FetchPost) (allPages : Page list) (year, month, day,
         | None -> NOT_FOUND "404")
 
 let handleBlogPosts (fetch : FetchPosts) (allPages : Page list) request : WebPart =
-    let posts =
+    let model =
         fetch()
-        |> List.sortByDescending (fun p -> p.createdAt)
-        |> List.map toItemDto
+        |> toPostsDto allPages
 
-    let model : PostsHtmlDto =
-        { title = "Adam Neumann's blog"
-          navigablePages = allPages |> toPageLinks
-          posts = posts }
     page "posts.html.liquid" model
 
 let handlePage (fetch : FetchPage) (allPages : Page list) (path : string) : WebPart =
