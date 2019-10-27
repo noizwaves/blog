@@ -48,3 +48,10 @@ In addition to running as a web server, a complete version of the blog can be ge
 1. `dotnet run -p NoizwavesBlog -- static`
 1. `python3 -m http.server --directory output`
 1. `open http://localhost:8000`
+
+## TODO
+
+- build the concept of all posts and all pages into the domain
+- move HTML generation into HTML and `handle` into WebServer
+- pull concept of drafts and visibility into the domain
+- use a real YAML deserializer instead of the hand-rolled simple one
