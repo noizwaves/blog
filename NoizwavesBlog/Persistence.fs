@@ -1,11 +1,27 @@
 module NoizwavesBlog.Persistence
 
 open NoizwavesBlog.Domain
+open SharpYaml.Model
+open SharpYaml.Model
+open SharpYaml.Serialization
 open System
+open System.Collections.Generic
+open System.IO
 
 type ShallowYaml = Map<String, String>
 
 let private shallowYamlDecode (yml: string): ShallowYaml =
+    let stream = new StringReader(yml)
+    let yamlStream = SharpYaml.Serialization.YamlStream()
+    yamlStream.Load stream
+
+    let doc = (yamlStream.Documents.Item 0).RootNode :?> SharpYaml.Serialization.YamlMappingNode
+
+    let items =
+        doc
+        |> Seq.map (fun kvp -> kvp.Key, kvp.Value)
+        // TODO: filter for YamlScalarNode
+
     yml
     |> String.split '\n'
     |> List.map (fun s ->

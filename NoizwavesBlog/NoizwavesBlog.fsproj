@@ -21,6 +21,7 @@
     <PackageReference Include="DotLiquid" Version="2.0.314" />
     <PackageReference Include="FSharp.Data" Version="3.3.2" />
     <PackageReference Include="Markdig" Version="0.17.1" />
+    <PackageReference Include="SharpYaml" Version="1.6.5" />
     <PackageReference Include="Suave" Version="2.5.5" />
     <PackageReference Include="Suave.DotLiquid" Version="2.5.5" />
   </ItemGroup>
