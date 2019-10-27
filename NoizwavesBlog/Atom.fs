@@ -33,24 +33,24 @@ type AtomFeed = FSharp.Data.XmlProvider<"""<feed xmlns="http://www.w3.org/2005/A
   </entry>
 </feed>""">
 
-let private derivePostUrl (post : BlogPost) : string =
+let private derivePostUrl (post: BlogPost): string =
     sprintf "https://blog.noizwaves.io/%04i/%02i/%02i/%s.html" post.slug.year post.slug.month post.slug.day post.slug.name
 
-let private formatForAtom (date : DateTimeOffset) : string =
+let private formatForAtom (date: DateTimeOffset): string =
     date.ToString "yyyy-MM-ddTHH:mm:ssZ"
 
-let private postToEntry (post : BlogPost) : AtomFeed.Entry =
+let private postToEntry (post: BlogPost): AtomFeed.Entry =
     let url = post |> derivePostUrl
     let date = post.createdAt |> formatForAtom
     let content = post.body |> convertToHtml
     let summary = post.body |> convertToText
 
-    AtomFeed.Entry (post.title, AtomFeed.Link2 url, AtomFeed.Content ("html", content), url, date, summary)
+    AtomFeed.Entry(post.title, AtomFeed.Link2 url, AtomFeed.Content("html", content), url, date, summary)
 
-let private entriesToFeed (entries : AtomFeed.Entry list) : AtomFeed.Feed =
-    let updated = DateTimeOffset (2003, 12, 13, 18, 30, 2, TimeSpan.Zero) |> formatForAtom
-    let pageLink = AtomFeed.Link ("https://blog.noizwaves.io/", None)
-    let atomLink = AtomFeed.Link ("https://blog.noizwaves.io/atom.xml", Some "self")
+let private entriesToFeed (entries: AtomFeed.Entry list): AtomFeed.Feed =
+    let updated = DateTimeOffset(2003, 12, 13, 18, 30, 2, TimeSpan.Zero) |> formatForAtom
+    let pageLink = AtomFeed.Link("https://blog.noizwaves.io/", None)
+    let atomLink = AtomFeed.Link("https://blog.noizwaves.io/atom.xml", Some "self")
 
     AtomFeed.Feed
         ("Adam Neumann's blog",
@@ -69,8 +69,8 @@ let sprintAtomFeed (posts: BlogPost list): string =
 %O
 """
 
-let handleAtomFeed (fetch : FetchPosts) : WebPart =
-    fetch ()
+let handleAtomFeed (fetch: FetchPosts): WebPart =
+    fetch()
     |> sprintAtomFeed
     |> Successful.OK
     >=> Writers.setMimeType "application/atom+xml"

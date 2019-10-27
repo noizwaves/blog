@@ -15,7 +15,7 @@ let private expectSome hc =
 
 let private expectStatus response = response.status.code
 
-let private expectContentType (response : HttpResult) : string =
+let private expectContentType (response: HttpResult): string =
     response.headers
     |> List.filter (fun (k, _) -> k = "Content-Type")
     |> List.map snd
@@ -44,7 +44,7 @@ let ``No posts``() =
     context.response
     |> expectStatus
     |> should equal 200
-    
+
     context.response
     |> expectContentType
     |> should equal "application/atom+xml"
@@ -67,21 +67,21 @@ let ``No posts``() =
 
 [<Fact>]
 let ``Single post``() =
-    let singlePost : FetchPosts = fun () ->
+    let singlePost: FetchPosts = fun () ->
         [ { slug = { year = 2019; month = 9; day = 23; name = "foo-bar" };
             title = "Foo Bar";
             createdAt = new DateTimeOffset(2020, 10, 24, 11, 22, 33, TimeSpan.Zero);
             body = """Baz Qux"""
             } ]
-    
+
     let subject = handleAtomFeed singlePost
-    
+
     let context =
         HttpContext.empty
         |> subject
         |> Async.RunSynchronously
         |> expectSome
-    
+
     context.response
         |> expectBytes
         |> Encoding.Default.GetString
@@ -110,7 +110,7 @@ let ``Single post``() =
 
 [<Fact>]
 let ``Summary is only plain text``() =
-    let singlePost : FetchPosts = fun () ->
+    let singlePost: FetchPosts = fun () ->
         [ { slug = { year = 2019; month = 9; day = 23; name = "foo-bar" };
             title = "Foo Bar";
             createdAt = new DateTimeOffset(2020, 10, 24, 11, 22, 33, TimeSpan.Zero);

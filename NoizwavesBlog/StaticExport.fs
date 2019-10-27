@@ -7,8 +7,8 @@ open Suave.DotLiquid
 
 let private rimraf path =
     if Directory.Exists path then
-        Directory.Delete (path, true)
-    
+        Directory.Delete(path, true)
+
     Directory.CreateDirectory path |> ignore
 
 // http://www.fssnip.net/gO/title/Copy-a-directory-of-files
@@ -49,32 +49,32 @@ let private renderPosts destination posts pages =
 
     let write (post: BlogPost, html: String) =
         let folder = sprintf "/%04i/%02i/%02i" post.slug.year post.slug.month post.slug.day
-        let dir = Path.Join (String.op_Implicit destination, String.op_Implicit folder)
+        let dir = Path.Join(String.op_Implicit destination, String.op_Implicit folder)
         Directory.CreateDirectory dir |> ignore
-        
-        let path = Path.Join (String.op_Implicit dir, String.op_Implicit post.slug.name)
-        File.WriteAllText (path, html)
-        
+
+        let path = Path.Join(String.op_Implicit dir, String.op_Implicit post.slug.name)
+        File.WriteAllText(path, html)
+
         let filename = post.slug.name + ".html"
-        let pathWithExtension = Path.Join (String.op_Implicit dir, String.op_Implicit filename)
-        File.WriteAllText (pathWithExtension, html)
-    
+        let pathWithExtension = Path.Join(String.op_Implicit dir, String.op_Implicit filename)
+        File.WriteAllText(pathWithExtension, html)
+
     posts
     |> List.map render
     |> List.map write
     |> ignore
 
 let private renderPostList destination posts pages =
-    let path = Path.Join (String.op_Implicit destination, String.op_Implicit "index.html")
+    let path = Path.Join(String.op_Implicit destination, String.op_Implicit "index.html")
     let dto = Html.toPostsDto pages posts
     let html =
         dto
         |> Suave.DotLiquid.renderPageFile "./templates/posts.html.liquid"
         |> Async.RunSynchronously
-    File.WriteAllText (path, html)
+    File.WriteAllText(path, html)
 
 let private renderPages (destination: string) (pages: Page list) =
-    let folder = Path.Join ( String.op_Implicit destination, String.op_Implicit "pages")
+    let folder = Path.Join(String.op_Implicit destination, String.op_Implicit "pages")
     if not <| Directory.Exists folder then
         Directory.CreateDirectory folder |> ignore
 
@@ -91,8 +91,8 @@ let private renderPages (destination: string) (pages: Page list) =
             Directory.CreateDirectory folder |> ignore
 
         let filename = page.path + ".html"
-        let path = Path.Join (String.op_Implicit folder, String.op_Implicit filename)
-        File.WriteAllText (path, html)
+        let path = Path.Join(String.op_Implicit folder, String.op_Implicit filename)
+        File.WriteAllText(path, html)
 
     pages
     |> List.map render
@@ -100,9 +100,9 @@ let private renderPages (destination: string) (pages: Page list) =
     |> ignore
 
 let private renderAtomFeed destination (posts: BlogPost list) =
-    let path = Path.Join (String.op_Implicit destination, String.op_Implicit "atom.xml")
+    let path = Path.Join(String.op_Implicit destination, String.op_Implicit "atom.xml")
     let content = Atom.sprintAtomFeed posts
-    File.WriteAllText (path, content)
+    File.WriteAllText(path, content)
 
 let run =
     // Load blog
@@ -110,11 +110,11 @@ let run =
     setCSharpNamingConvention()
     let published = Persistence.loadPostsFromFolder "_posts"
     let pages = Persistence.loadPagesFromFolder "_pages"
-    
+
     // Clean output dir
     let outputDir = Path.GetFullPath "./output"
     rimraf outputDir
-    
+
     // Write blog to files
     copyStaticFiles outputDir
     renderPosts outputDir published pages

@@ -19,7 +19,7 @@ let run =
         |> fun drafts -> drafts <> "" && drafts <> null
 
     let local = Suave.Http.HttpBinding.createSimple HTTP "0.0.0.0" port
-    
+
     let config =
         { defaultConfig with bindings = [ local ]
                              homeFolder = Some(Path.GetFullPath "./public") }
@@ -32,8 +32,8 @@ let run =
     let fetchPost = Persistence.findPostInList posts
     let pages = Persistence.loadPagesFromFolder "_pages"
     let fetchPage = Persistence.findPageInList pages
-    
-    let app : WebPart =
+
+    let app: WebPart =
         choose [ GET >=> path "/" >=> request (Html.handleBlogPosts fetchPosts pages)
                  GET >=> pathScan "/%s/%s/%s/%s.html" (Html.handleBlogPost fetchPost pages)
                  GET >=> pathScan "/%s/%s/%s/%s" (Html.handleBlogPost fetchPost pages)

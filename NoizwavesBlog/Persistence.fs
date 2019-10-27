@@ -5,7 +5,7 @@ open System
 
 type ShallowYaml = Map<String, String>
 
-let private shallowYamlDecode (yml : string) : ShallowYaml =
+let private shallowYamlDecode (yml: string): ShallowYaml =
     yml
     |> String.split '\n'
     |> List.map (fun s ->
@@ -15,7 +15,7 @@ let private shallowYamlDecode (yml : string) : ShallowYaml =
            (key, value))
     |> Map.ofList
 
-let private parseDelimitedFile (raw : string) : ShallowYaml * string =
+let private parseDelimitedFile (raw: string): ShallowYaml * string =
     let split = raw.Split("---")
     if (split.Length >= 2) then
         let document = Array.get split (split.Length - 1) |> String.trim
@@ -27,17 +27,17 @@ let private parseDelimitedFile (raw : string) : ShallowYaml * string =
         (frontmatter, document)
     else (Map.empty, raw)
 
-let private fromRawString (filename : string) (raw : string) : BlogPost =
+let private fromRawString (filename: string) (raw: string): BlogPost =
     let (frontMatter, body) = parseDelimitedFile raw
     let title = Map.find "title" frontMatter
     let name = String.substring 11 filename
 
-    let filenameCreatedAt : DateTimeOffset =
+    let filenameCreatedAt: DateTimeOffset =
         match String.split '-' filename with
         | year :: month :: day :: _ -> DateTimeOffset(int year, int month, int day, 0, 0, 0, TimeSpan.Zero)
         | _ -> failwith "Unable to parse date"
 
-    let createdAt : DateTimeOffset =
+    let createdAt: DateTimeOffset =
         Map.tryFind "date" frontMatter
         |> Option.bind parseFromLongString
         |> Option.defaultValue filenameCreatedAt
@@ -53,7 +53,7 @@ let private fromRawString (filename : string) (raw : string) : BlogPost =
       createdAt = createdAt
       body = body }
 
-let loadPostsFromFolder (folder : string) : BlogPost list =
+let loadPostsFromFolder (folder: string): BlogPost list =
     folder
     |> System.IO.Directory.GetFiles
     |> Array.toList
@@ -64,12 +64,12 @@ let loadPostsFromFolder (folder : string) : BlogPost list =
            |> fromRawString filename)
 
 
-let private draftFromRawString (path : string) (filename : string) (raw : string) : BlogPost =
+let private draftFromRawString (path: string) (filename: string) (raw: string): BlogPost =
     let (frontMatter, body) = parseDelimitedFile raw
     let title = Map.find "title" frontMatter
     let name = filename
 
-    let createdAt : DateTimeOffset =
+    let createdAt: DateTimeOffset =
         Map.tryFind "date" frontMatter
         |> Option.bind parseFromLongString
         |> Option.defaultWith (fun _ -> failwith "Unable to parse date from frontmatter")
@@ -85,7 +85,7 @@ let private draftFromRawString (path : string) (filename : string) (raw : string
       createdAt = createdAt
       body = body }
 
-let loadDraftsFromFolder (folder : string) : BlogPost list =
+let loadDraftsFromFolder (folder: string): BlogPost list =
     folder
     |> System.IO.Directory.GetFiles
     |> Array.toList
@@ -96,7 +96,7 @@ let loadDraftsFromFolder (folder : string) : BlogPost list =
            |> System.IO.File.ReadAllText
            |> draftFromRawString path filename)
 
-let private pageFromRaw (filename : string) (raw : string) : Page =
+let private pageFromRaw (filename: string) (raw: string): Page =
     let (frontMatter, body) = parseDelimitedFile raw
     let title = Map.find "title" frontMatter
 
@@ -104,7 +104,7 @@ let private pageFromRaw (filename : string) (raw : string) : Page =
       title = title
       body = body }
 
-let loadPagesFromFolder (folder : string) : Page list =
+let loadPagesFromFolder (folder: string): Page list =
     folder
     |> System.IO.Directory.GetFiles
     |> Array.toList
@@ -121,8 +121,8 @@ let private safeFind predicate list =
         |> Some
     with :? System.Collections.Generic.KeyNotFoundException -> None
 
-let findPostInList (posts : BlogPost list) (slug : Slug) : BlogPost option =
+let findPostInList (posts: BlogPost list) (slug: Slug): BlogPost option =
     posts |> safeFind (fun p -> p.slug.Equals(slug))
 
-let findPageInList (pages : Page list) (path : string) : Page option =
+let findPageInList (pages: Page list) (path: string): Page option =
     pages |> safeFind (fun p -> String.equals path p.path)
