@@ -56,7 +56,7 @@ let ``No posts``() =
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Adam Neumann's blog</title>
   <link href="https://blog.noizwaves.io/" />
-  <link href="https://blog.noizwaves.io/feed.atom" rel="self" />
+  <link href="https://blog.noizwaves.io/atom.xml" rel="self" />
   <updated>2003-12-13T18:30:02Z</updated>
   <author>
     <name>Adam Neumann</name>
@@ -89,7 +89,7 @@ let ``Single post``() =
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Adam Neumann's blog</title>
   <link href="https://blog.noizwaves.io/" />
-  <link href="https://blog.noizwaves.io/feed.atom" rel="self" />
+  <link href="https://blog.noizwaves.io/atom.xml" rel="self" />
   <updated>2003-12-13T18:30:02Z</updated>
   <author>
     <name>Adam Neumann</name>
@@ -97,10 +97,10 @@ let ``Single post``() =
   <id>https://blog.noizwaves.io/</id>
   <entry>
     <title>Foo Bar</title>
-    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar" />
+    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar.html" />
     <content type="html">&lt;p&gt;Baz Qux&lt;/p&gt;
 </content>
-    <id>https://blog.noizwaves.io/2019/09/23/foo-bar</id>
+    <id>https://blog.noizwaves.io/2019/09/23/foo-bar.html</id>
     <updated>2020-10-24T11:22:33Z</updated>
     <summary>Baz Qux
 </summary>
@@ -132,7 +132,7 @@ let ``Summary is only plain text``() =
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Adam Neumann's blog</title>
   <link href="https://blog.noizwaves.io/" />
-  <link href="https://blog.noizwaves.io/feed.atom" rel="self" />
+  <link href="https://blog.noizwaves.io/atom.xml" rel="self" />
   <updated>2003-12-13T18:30:02Z</updated>
   <author>
     <name>Adam Neumann</name>
@@ -140,10 +140,10 @@ let ``Summary is only plain text``() =
   <id>https://blog.noizwaves.io/</id>
   <entry>
     <title>Foo Bar</title>
-    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar" />
+    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar.html" />
     <content type="html">&lt;p&gt;&lt;em&gt;hello&lt;/em&gt;&lt;/p&gt;
 </content>
-    <id>https://blog.noizwaves.io/2019/09/23/foo-bar</id>
+    <id>https://blog.noizwaves.io/2019/09/23/foo-bar.html</id>
     <updated>2020-10-24T11:22:33Z</updated>
     <summary>hello
 </summary>

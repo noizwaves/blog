@@ -55,7 +55,8 @@ let private renderPosts destination posts pages =
         let path = Path.Join (String.op_Implicit dir, String.op_Implicit post.slug.name)
         File.WriteAllText (path, html)
         
-        let pathWithExtension = Path.Join (String.op_Implicit dir, String.op_Implicit (post.slug.name + ".html"))
+        let filename = post.slug.name + ".html"
+        let pathWithExtension = Path.Join (String.op_Implicit dir, String.op_Implicit filename)
         File.WriteAllText (pathWithExtension, html)
     
     posts
@@ -89,7 +90,8 @@ let private renderPages (destination: string) (pages: Page list) =
         if not <| Directory.Exists folder then
             Directory.CreateDirectory folder |> ignore
 
-        let path = Path.Join (String.op_Implicit folder, String.op_Implicit page.path)
+        let filename = page.path + ".html"
+        let path = Path.Join (String.op_Implicit folder, String.op_Implicit filename)
         File.WriteAllText (path, html)
 
     pages
@@ -98,7 +100,7 @@ let private renderPages (destination: string) (pages: Page list) =
     |> ignore
 
 let private renderAtomFeed destination (posts: BlogPost list) =
-    let path = Path.Join (String.op_Implicit destination, String.op_Implicit "feed.atom")
+    let path = Path.Join (String.op_Implicit destination, String.op_Implicit "atom.xml")
     let content = Atom.sprintAtomFeed posts
     File.WriteAllText (path, content)
 

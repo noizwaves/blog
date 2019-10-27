@@ -34,11 +34,11 @@ type PageHtmlDto =
 
 let private formatCreateDate (value : DateTimeOffset) : string = value.ToString("MMM d, yyyy")
 let private derivePostUrl (post : BlogPost) : string =
-    sprintf "/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
+    sprintf "/%04i/%02i/%02i/%s.html" post.slug.year post.slug.month post.slug.day post.slug.name
 
 let private toPageLinks (pages : Page list) : PageLinkDto list =
     pages
-        |> List.map (fun p -> { title = p.title; url = sprintf "/pages/%s" p.path })
+        |> List.map (fun p -> { title = p.title; url = sprintf "/pages/%s.html" p.path })
         |> List.sortBy (fun link -> link.title)
 
 // TODO: making this public is suboptimal

@@ -9,7 +9,7 @@ open Suave.Operators
 type AtomFeed = FSharp.Data.XmlProvider<"""<feed xmlns="http://www.w3.org/2005/Atom">
   <title>Adam Neumann's blog</title>
   <link href="https://blog.noizwaves.io/" />
-  <link href="https://blog.noizwaves.io/feed.atom" rel="self" />
+  <link href="https://blog.noizwaves.io/atom.xml" rel="self" />
   <updated>SOME BLOG DATE</updated>
   <author>
     <name>Adam Neumann</name>
@@ -17,24 +17,24 @@ type AtomFeed = FSharp.Data.XmlProvider<"""<feed xmlns="http://www.w3.org/2005/A
   <id>https://blog.noizwaves.io/</id>
   <entry>
     <title>Foo Bar</title>
-    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar"/>
+    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar.html"/>
     <content type="html">Content</content>
-    <id>https://blog.noizwaves.io/2019/09/23/foo-bar</id>
+    <id>https://blog.noizwaves.io/2019/09/23/foo-bar.html</id>
     <updated>DATE AS STRING</updated>
     <summary>Summary</summary>
   </entry>
   <entry>
     <title>Foo Bar 2</title>
-    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar-2"/>
+    <link href="https://blog.noizwaves.io/2019/09/23/foo-bar-2.html"/>
     <content type="html">Content 2</content>
-    <id>https://blog.noizwaves.io/2019/09/23/foo-bar-2</id>
+    <id>https://blog.noizwaves.io/2019/09/23/foo-bar-2.html</id>
     <updated>DIFFERENT DATE AS STRING</updated>
     <summary>Summary</summary>
   </entry>
 </feed>""">
 
 let private derivePostUrl (post : BlogPost) : string =
-    sprintf "https://blog.noizwaves.io/%04i/%02i/%02i/%s" post.slug.year post.slug.month post.slug.day post.slug.name
+    sprintf "https://blog.noizwaves.io/%04i/%02i/%02i/%s.html" post.slug.year post.slug.month post.slug.day post.slug.name
 
 let private formatForAtom (date : DateTimeOffset) : string =
     date.ToString "yyyy-MM-ddTHH:mm:ssZ"
@@ -50,7 +50,7 @@ let private postToEntry (post : BlogPost) : AtomFeed.Entry =
 let private entriesToFeed (entries : AtomFeed.Entry list) : AtomFeed.Feed =
     let updated = DateTimeOffset (2003, 12, 13, 18, 30, 2, TimeSpan.Zero) |> formatForAtom
     let pageLink = AtomFeed.Link ("https://blog.noizwaves.io/", None)
-    let atomLink = AtomFeed.Link ("https://blog.noizwaves.io/feed.atom", Some "self")
+    let atomLink = AtomFeed.Link ("https://blog.noizwaves.io/atom.xml", Some "self")
 
     AtomFeed.Feed
         ("Adam Neumann's blog",
