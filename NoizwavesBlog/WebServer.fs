@@ -9,6 +9,9 @@ open System
 open System.IO
 
 let run =
+    Environment.GetEnvironmentVariable "PORT"
+    |> printfn "WebServer.fs: %O"
+    
     let port =
         Environment.GetEnvironmentVariable "PORT"
         |> Parse.int32
