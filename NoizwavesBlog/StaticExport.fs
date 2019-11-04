@@ -104,7 +104,9 @@ let private renderAtomFeed destination (posts: BlogPost list) =
     let content = Atom.sprintAtomFeed posts
     File.WriteAllText(path, content)
 
-let run() =
+printfn "- Before StaticExport.fs `let run`"
+
+let run =
     // Load blog
     setTemplatesDir "./templates"
     setCSharpNamingConvention()
@@ -123,3 +125,5 @@ let run() =
     renderAtomFeed outputDir published
 
     0
+
+printfn "- After StaticExport.fs `let run`"

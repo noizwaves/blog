@@ -8,7 +8,9 @@ open Suave.Utils
 open System
 open System.IO
 
-let run() =
+printfn "- Before WebServer.fs `let run`"
+
+let run =
     let port =
         Environment.GetEnvironmentVariable "PORT"
         |> Parse.int32
@@ -43,3 +45,5 @@ let run() =
                  RequestErrors.NOT_FOUND "404" ]
     startWebServer config app
     0
+    
+printfn "- After WebServer.fs `let run`"
