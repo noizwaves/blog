@@ -104,7 +104,7 @@ let private renderAtomFeed destination (posts: BlogPost list) =
     let content = Atom.sprintAtomFeed posts
     File.WriteAllText(path, content)
 
-let run =
+let run() =
     // Load blog
     setTemplatesDir "./templates"
     setCSharpNamingConvention()

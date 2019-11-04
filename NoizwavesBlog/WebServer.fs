@@ -8,7 +8,7 @@ open Suave.Utils
 open System
 open System.IO
 
-let run =
+let run() =
     let port =
         Environment.GetEnvironmentVariable "PORT"
         |> Parse.int32

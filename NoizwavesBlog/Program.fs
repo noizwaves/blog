@@ -7,6 +7,6 @@ let main args =
     let staticMode = Array.contains "static" args
 
     if staticMode then
-        StaticExport.run
+        StaticExport.run()
     else
-        WebServer.run
+        WebServer.run()
