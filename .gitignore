@@ -8,3 +8,6 @@ public/static/app.css
 .vscode/
 *.DotSettings.user
 output/
+
+# Local Netlify folder
+.netlify
