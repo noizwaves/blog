@@ -94,3 +94,6 @@ workflows:
                 - master
           requires:
             - build
+  feature-branch-workflow:
+    jobs:
+      - build
