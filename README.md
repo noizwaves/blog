@@ -2,6 +2,8 @@
 
 Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
+Some other changes here.
+
 [![CircleCI](https://circleci.com/gh/noizwaves/blog/tree/master.svg?style=svg)](https://circleci.com/gh/noizwaves/blog/tree/master)
 
 ## Quick start
