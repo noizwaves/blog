@@ -2,7 +2,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: mcr.microsoft.com/dotnet/core/sdk:2.2.401
+      - image: mcr.microsoft.com/dotnet/core/sdk:3.1.409
     steps:
       - checkout
       - run:
@@ -12,6 +12,11 @@ jobs:
           name: Install FAKE
           command: |
             dotnet tool install fake-cli -g
+      - run:
+          name: Install libsass
+          command: |
+            apt-get update
+            apt-get install -y libsass-dev
       - run:
           name: Build
           command: dotnet build
@@ -96,4 +101,9 @@ workflows:
             - build
   feature-branch-workflow:
     jobs:
-      - build
+      - build:
+          filters:
+            branches:
+              ignore:
+                - master
+                - development
