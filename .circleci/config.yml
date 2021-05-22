@@ -106,4 +106,4 @@ workflows:
             branches:
               ignore:
                 - master
-                - development
+                - develop
