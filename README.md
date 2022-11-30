@@ -6,31 +6,16 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
 ## Quick start
 
+1.  Open in VS Code using Dev Containers
 1.  `dotnet restore`
 1.  `fake build`
 1.  `dotnet run -p NoizwavesBlog`
 1.  View the [blog](http://localhost:8080)
 1.  View a [post](http://localhost:8080/2018/12/10/hello-fsharp-world)
 
-## Dependencies
-
-1.  Install dependencies via `asdf install`
-1.  Install FAKE 5 via
-    1.  `dotnet tool install fake-cli -g`
-    1.  adding `$HOME/.dotnet/tools` to `PATH` (as [described here](https://github.com/dotnet/docs/blob/master/docs/core/tools/global-tools.md#install-a-global-tool))
-1.  Install `libsass` via
-    -   on Debian via `sudo apt install libsass-dev`
-    -   on Arch via `sudo pacman -Syu libsass`
-    -   on macOS (probably) via `brew install libsass`
-
 ## Tests
 
 1.  `dotnet test`
-
-## Deploying
-
-1.  `fake build target Publish`
-1.  `cf push`
 
 ## Features
 

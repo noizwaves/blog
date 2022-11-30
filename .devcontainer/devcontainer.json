@@ -1,0 +1,19 @@
+{
+	"name": "Blog",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"containerEnv": {
+		"DRAFTS": "true"
+	},
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+			]
+		}
+	},
+
+	"remoteUser": "root",
+	"postCreateCommand": "bash .devcontainer/postCreateCommand.sh"
+}
