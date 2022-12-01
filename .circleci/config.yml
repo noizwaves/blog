@@ -37,7 +37,7 @@ jobs:
 
   deploy-staging:
     docker:
-      - image: circleci/node:10
+      - image: circleci/node:18
     steps:
       - attach_workspace:
           at: /tmp/workspace
