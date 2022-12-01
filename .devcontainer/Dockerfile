@@ -1,8 +1,7 @@
-# [Choice] .NET version: 6.0-focal, 3.1-focal
-ARG VARIANT="3.1-focal"
-FROM mcr.microsoft.com/vscode/devcontainers/dotnet:0-${VARIANT}
+ARG TAG="0.204.1-6.0-jammy"
+FROM mcr.microsoft.com/vscode/devcontainers/dotnet:${TAG}
 
-RUN dotnet tool install --global fake-cli --version 5.20.4
+RUN dotnet tool install --global fake-cli --version 5.23.0
 ENV PATH=$PATH:/root/.dotnet/tools
 
 # [Optional] Uncomment this section to install additional OS packages.
