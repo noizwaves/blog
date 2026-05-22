@@ -2,8 +2,6 @@
 
 Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
-[![CircleCI](https://circleci.com/gh/noizwaves/blog/tree/master.svg?style=svg)](https://circleci.com/gh/noizwaves/blog/tree/master)
-
 ## Quick start
 
 1.  Open in VS Code using Dev Containers
@@ -15,6 +13,7 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 
 ## Setup
 
+1.  `cp .envrc.tmpl .envrc`
 1.  Install system dependencies:
     1.  `sudo pacman -S libsaas`
     1.  `yay -S openssl-1.1`
