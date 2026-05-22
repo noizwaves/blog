@@ -13,6 +13,17 @@ Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
 1.  View the [blog](http://localhost:8080)
 1.  View a [post](http://localhost:8080/2018/12/10/hello-fsharp-world)
 
+## Setup
+
+1.  Install system dependencies:
+    1.  `sudo pacman -S libsaas`
+    1.  `yay -S openssl-1.1`
+1.  `mise install`
+1.  `dotnet restore`
+1.  `dotnet tool install --global fake-cli --version 5.20.4`
+1.  `fake build`
+1.  `dotnet run -p NoizwavesBlog`
+
 ## Tests
 
 1.  `dotnet test`
