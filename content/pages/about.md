@@ -12,4 +12,4 @@ It is written in pure HTML and CSS, and is also self hosted.
 The source code is not available.
 
 I also like to dabble in photography.
-You can browse my photos at [my photo gallery](https://gallery.noizwaves.com).
+You can browse my photos at my [photo gallery](https://gallery.noizwaves.com).
