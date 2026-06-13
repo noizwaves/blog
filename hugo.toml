@@ -25,6 +25,10 @@ uglyURLs = true
     title = 'Personal Website'
     url = 'https://noizwaves.com'
   [[params.socialIcons]]
+    name = 'unsplash'
+    title = 'Photo Gallery'
+    url = 'https://gallery.noizwaves.com'
+  [[params.socialIcons]]
     name = 'github'
     url = 'https://github.com/noizwaves'
   [[params.socialIcons]]
