@@ -2,5 +2,5 @@
 set -euo pipefail
 
 rm -rf public
-hugo
+mise exec -- hugo
 rsync -a public/ dell-one:/home/cloud/cloud-data/blog.noizwaves.com/content/
