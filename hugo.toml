@@ -1,0 +1,47 @@
+baseURL = 'https://blog.noizwaves.com'
+locale = 'en-us'
+title = "Adam Neumann's blog"
+theme = 'PaperMod'
+copyright = "© 2026 Adam Neumann"
+uglyURLs = true
+
+[permalinks]
+  posts = '/:year/:month/:day/:slug'
+  pages = '/pages/:slug'
+
+# RSS feed stays at the Hugo default /index.xml (no baseName override)
+
+[params]
+  mainSections = ['posts']
+  ShowReadingTime = true
+  ShowToc = false
+
+  [params.homeInfoParams]
+    Title = "Adam Neumann's blog"
+    Content = "Technical blog of Adam Neumann. Engineer at Gusto in Boulder, CO."
+
+  [[params.socialIcons]]
+    name = 'website'
+    title = 'Personal Website'
+    url = 'https://noizwaves.com'
+  [[params.socialIcons]]
+    name = 'github'
+    url = 'https://github.com/noizwaves'
+  [[params.socialIcons]]
+    name = 'bluesky'
+    url = 'https://bsky.app/profile/noizwaves.com'
+  [[params.socialIcons]]
+    name = 'email'
+    url = 'mailto:blog@noizwaves.com'
+  [[params.socialIcons]]
+    name = 'rss'
+    url = 'index.xml'
+
+[[menu.main]]
+  name = 'About'
+  url = '/pages/about.html'
+  weight = 1
+[[menu.main]]
+  name = 'Resources'
+  url = '/pages/resources.html'
+  weight = 2

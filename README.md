@@ -1,52 +1,43 @@
-# noizwaves.github.io
+# blog.noizwaves.com
 
-Professional blog powered by F#, Suave.IO, and .NET Core. Inspired by Jekyll.
+Technical blog of Adam Neumann, built with [Hugo](https://gohugo.io/) and deployed as static HTML.
 
-## Quick start
+## Tools
 
-1.  Open in VS Code using Dev Containers
-1.  `dotnet restore`
-1.  `fake build`
-1.  `dotnet run -p NoizwavesBlog`
-1.  View the [blog](http://localhost:8080)
-1.  View a [post](http://localhost:8080/2018/12/10/hello-fsharp-world)
+- **Hugo** (extended) — static site generator (`hugo.toml`), version pinned in `.mise.toml`
+- **PaperMod** — theme installed as a git submodule under `themes/PaperMod`
+- **mise** — manages the Hugo version (`.mise.toml`)
 
 ## Setup
 
-1.  `cp .envrc.tmpl .envrc`
-1.  Install system dependencies:
-    1.  `sudo pacman -S libsaas`
-    1.  `yay -S openssl-1.1`
-1.  `mise install`
-1.  `dotnet restore`
-1.  `dotnet tool install --global fake-cli --version 5.20.4`
-1.  `fake build`
-1.  `dotnet run -p NoizwavesBlog`
+```sh
+mise install                  # install the pinned Hugo version
+git submodule update --init   # fetch the PaperMod theme
+```
 
-## Tests
+## Development
 
-1.  `dotnet test`
+```sh
+./bin/server.sh   # local dev server at http://localhost:1313
+```
 
-## Features
+## Deployment
 
-### Drafts
+```sh
+./bin/deploy.sh   # build and rsync to dell-one
+```
 
-Draft posts can be displayed by setting the `DRAFTS` environment variable to a non-empty value.
+## Structure
 
-To see drafts locally, run:
-1.  `DRAFTS=true dotnet run -p NoizwavesBlog`
+- `content/posts/` — blog posts
+- `content/pages/` — standalone pages (About, Resources)
+- `static/assets/` — images and other files served verbatim at `/assets/...`
+- `archetypes/` — front matter templates for new content
+- `themes/PaperMod/` — theme (git submodule)
+- `public/` — build output (not committed)
 
-### Static Site generation
+## Writing
 
-In addition to running as a web server, a complete version of the blog can be generated.
-
-1. `dotnet run -p NoizwavesBlog -- static`
-1. `python3 -m http.server --directory output`
-1. `open http://localhost:8000`
-
-## TODO
-
-- build the concept of all posts and all pages into the domain
-- move HTML generation into HTML and `handle` into WebServer
-- pull concept of drafts and visibility into the domain
-- use a real YAML deserializer instead of the hand-rolled simple one
+Posts live in `content/posts/`. URLs preserve the original scheme via `hugo.toml`
+(`/YYYY/MM/DD/<slug>.html`), so each post's `date` and `slug` front matter determine its URL.
+Set `draft: true` to keep a post out of the build; preview drafts with `hugo server -D`.

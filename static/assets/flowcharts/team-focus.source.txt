@@ -1,0 +1,24 @@
+https://flowchart.js.org/
+
+st=>start: Request for help
+teamcond=>condition: Does it match
+the team's
+objective?
+help=>end: Provide
+help
+team=>operation: Does it match
+a different
+team's objective?
+teamcond2=>condition: Does it match
+a different
+team's objective?
+refer=>operation: Refer to
+other team
+mgmt=>operation: Tell management
+about the need
+
+st->teamcond
+teamcond(yes)->help
+teamcond(no)->teamcond2
+teamcond2(yes)->refer
+teamcond2(no)->mgmt
