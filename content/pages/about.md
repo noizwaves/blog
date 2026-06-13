@@ -10,3 +10,6 @@ The source code is available in [this repo](https://github.com/noizwaves/blog).
 Also check out my [personal website](https://noizwaves.com).
 It is written in pure HTML and CSS, and is also self hosted.
 The source code is not available.
+
+I also like to dabble in photography.
+You can browse my photos at [gallery.noizwaves.com](https://gallery.noizwaves.com).
