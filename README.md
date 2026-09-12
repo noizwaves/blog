@@ -11,8 +11,7 @@ Technical blog of Adam Neumann, built with [Hugo](https://gohugo.io/) and deploy
 ## Setup
 
 ```sh
-mise install                  # install the pinned Hugo version
-git submodule update --init   # fetch the PaperMod theme
+./bin/setup   # set up dependencies
 ```
 
 ## Development
